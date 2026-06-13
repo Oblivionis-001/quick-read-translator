@@ -119,13 +119,13 @@ describe("handleTranslateMessage", () => {
     );
 
     expect(response.results).toHaveLength(1);
-    expect(response.results[0].translatedText).toBe("[stub:stub-model] zh-CN");
-    expect(response.results[0].providerId).toBe("stub");
-    expect(response.results[0].modelId).toBe("stub-model");
-    expect(response.results[0].latencyMs).toBe(1);
+    expect(response.results![0].translatedText).toBe("[stub:stub-model] zh-CN");
+    expect(response.results![0].providerId).toBe("stub");
+    expect(response.results![0].modelId).toBe("stub-model");
+    expect(response.results![0].latencyMs).toBe(1);
   });
 
-  it("throws when no provider matches currentProviderId", async () => {
+  it("returns ok=false with per-block errors when no provider matches currentProviderId", async () => {
     const config: AppConfig = {
       targetLanguage: "zh-CN",
       sourceLanguage: "auto",
@@ -136,15 +136,31 @@ describe("handleTranslateMessage", () => {
       selectionTriggerEnabled: true,
     };
 
-    await expect(
-      handleTranslateMessage(
-        { type: "TRANSLATE_BLOCKS", targetLanguage: "zh-CN", blocks: [] },
-        {
-          configRepo: new StubConfigRepo(config),
-          cache: new TranslationCache(),
-          providerFactory: () => new StubProvider("stub-model"),
-        }
-      )
-    ).rejects.toThrow(/No provider configured/);
+    const response = await handleTranslateMessage(
+      {
+        type: "TRANSLATE_BLOCKS",
+        targetLanguage: "zh-CN",
+        blocks: [
+          {
+            id: "ignored-by-handler",
+            sourceText: "Hello",
+            sourceLanguage: "auto",
+          },
+        ],
+      },
+      {
+        configRepo: new StubConfigRepo(config),
+        cache: new TranslationCache(),
+        providerFactory: () => new StubProvider("stub-model"),
+      }
+    );
+
+    expect(response.ok).toBe(false);
+    expect(response.error).toMatch(/No provider configured/);
+    // The handler mirrors the input blocks into per-block errors so the
+    // orchestrator can render a retry button next to each one rather than
+    // silently dropping the whole batch.
+    expect(response.errors).toHaveLength(1);
+    expect(response.errors![0].message).toMatch(/No provider configured/);
   });
 });

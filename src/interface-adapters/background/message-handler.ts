@@ -32,8 +32,24 @@ export interface TranslateResponseBlock {
   latencyMs: number;
 }
 
+export interface TranslateResponseError {
+  blockId: string;
+  message: string;
+}
+
 export interface TranslateResponse {
-  results: TranslateResponseBlock[];
+  ok: boolean;
+  results?: TranslateResponseBlock[];
+  /**
+   * Per-block error markers. Populated when the scheduler threw a
+   * short-circuiting error before producing any results (e.g. provider
+   * auth failure, exhausted retries). Each entry corresponds to an input
+   * block so the content-script orchestrator can surface a ⚠️ with retry
+   * button next to it.
+   */
+  errors?: TranslateResponseError[];
+  /** Top-level error message when ok === false. */
+  error?: string;
 }
 
 /**
@@ -71,37 +87,16 @@ export function defaultMessageHandlerDeps(): MessageHandlerDeps {
  * resolve the active provider, build a TranslatePageUseCase, and execute it
  * over the incoming blocks.
  *
- * Returns only the per-block results. Errors propagate to the caller (the
- * background listener) which wraps them in an `{ ok: false }` response.
+ * Always returns a {@link TranslateResponse}. On success the response is
+ * `{ ok: true, results: [...] }`. On failure it is `{ ok: false, error,
+ * errors }` where `errors` mirrors the input block ids so the
+ * content-script orchestrator can surface a ⚠️ and a per-block retry
+ * button for each block that did not get translated.
  */
 export async function handleTranslateMessage(
   message: TranslateMessage,
   deps: MessageHandlerDeps = defaultMessageHandlerDeps()
 ): Promise<TranslateResponse> {
-  const configService = new ConfigService(deps.configRepo);
-  const config = await configService.getConfig();
-  const providerConfig = config.providers.find(
-    (p) => p.id === config.currentProviderId
-  );
-  if (!providerConfig) {
-    throw new Error(
-      `No provider configured for id "${config.currentProviderId}"`
-    );
-  }
-
-  const provider = deps.providerFactory(providerConfig);
-  const scheduler = new TranslationScheduler(provider);
-  const merger = new BlockMerger({ maxTokens: 1024 });
-
-  const useCase = new TranslatePageUseCase({
-    scheduler,
-    merger,
-    cache: deps.cache,
-    promptVersion: "v1",
-    providerId: providerConfig.id,
-    modelId: providerConfig.model,
-  });
-
   const blocks = message.blocks.map(
     (b) =>
       new ParagraphBlock({
@@ -111,18 +106,52 @@ export async function handleTranslateMessage(
       })
   );
 
-  const results: TranslationResult[] = await useCase.execute(
-    blocks,
-    message.targetLanguage
-  );
+  try {
+    const configService = new ConfigService(deps.configRepo);
+    const config = await configService.getConfig();
+    const providerConfig = config.providers.find(
+      (p) => p.id === config.currentProviderId
+    );
+    if (!providerConfig) {
+      throw new Error(
+        `No provider configured for id "${config.currentProviderId}"`
+      );
+    }
 
-  return {
-    results: results.map((r) => ({
-      blockId: r.blockId,
-      translatedText: r.translatedText,
-      providerId: r.providerId,
-      modelId: r.modelId,
-      latencyMs: r.latencyMs,
-    })),
-  };
+    const provider = deps.providerFactory(providerConfig);
+    const scheduler = new TranslationScheduler(provider);
+    const merger = new BlockMerger({ maxTokens: 1024 });
+
+    const useCase = new TranslatePageUseCase({
+      scheduler,
+      merger,
+      cache: deps.cache,
+      promptVersion: "v1",
+      providerId: providerConfig.id,
+      modelId: providerConfig.model,
+    });
+
+    const results: TranslationResult[] = await useCase.execute(
+      blocks,
+      message.targetLanguage
+    );
+
+    return {
+      ok: true,
+      results: results.map((r) => ({
+        blockId: r.blockId,
+        translatedText: r.translatedText,
+        providerId: r.providerId,
+        modelId: r.modelId,
+        latencyMs: r.latencyMs,
+      })),
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return {
+      ok: false,
+      error: errorMsg,
+      errors: blocks.map((b) => ({ blockId: b.id, message: errorMsg })),
+    };
+  }
 }
