@@ -8,10 +8,10 @@ import {
 } from "@/domain/errors";
 
 describe("LocalProxyProvider", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
+  const fetchMock = vi.fn();
 
   beforeEach(() => {
-    fetchMock = vi.fn();
+    fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -25,7 +25,7 @@ describe("LocalProxyProvider", () => {
     return new LocalProxyProvider({
       id: opts.id ?? "local-proxy",
       proxyUrl: opts.proxyUrl ?? "http://127.0.0.1:8787",
-      fetchImpl: opts.fetchImpl ?? fetchMock,
+      fetchImpl: opts.fetchImpl ?? (fetchMock as unknown as typeof fetch),
     });
   }
 
