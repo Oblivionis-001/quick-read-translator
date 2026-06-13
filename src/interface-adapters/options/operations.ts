@@ -77,3 +77,45 @@ export function updateProvider(
     ),
   };
 }
+
+/**
+ * Validate that an unknown value (e.g. parsed JSON from an import file) has the
+ * required shape of an AppConfig. Returns the value narrowed to AppConfig if
+ * valid, or null if the shape is invalid.
+ *
+ * Required checks:
+ *  - data must be a non-null object
+ *  - providers must be a non-empty array
+ *  - each provider must be an object with string id, baseUrl, model
+ *  - currentProviderId must be a string and match one of the provider ids
+ *
+ * Optional fields and their types are not validated — they're not load-bearing
+ * for safety and may evolve.
+ */
+export function validateImportedConfig(data: unknown): AppConfig | null {
+  if (!data || typeof data !== "object") return null;
+  if (Array.isArray(data)) return null;
+  const obj = data as Record<string, unknown>;
+
+  const providers = obj.providers;
+  if (!Array.isArray(providers) || providers.length === 0) return null;
+
+  for (const p of providers) {
+    if (!p || typeof p !== "object" || Array.isArray(p)) return null;
+    const po = p as Record<string, unknown>;
+    if (
+      typeof po.id !== "string" ||
+      typeof po.baseUrl !== "string" ||
+      typeof po.model !== "string"
+    ) {
+      return null;
+    }
+  }
+
+  if (typeof obj.currentProviderId !== "string") return null;
+  if (!providers.some((p) => (p as { id: unknown }).id === obj.currentProviderId)) {
+    return null;
+  }
+
+  return obj as unknown as AppConfig;
+}
