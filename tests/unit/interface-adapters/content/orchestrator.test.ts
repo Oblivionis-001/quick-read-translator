@@ -174,4 +174,65 @@ describe("translateBlocks", () => {
     await translateBlocks([block], "zh-CN", send);
     expect(rendererAdapter.renderError).not.toHaveBeenCalled();
   });
+
+  it("wires retry callback to re-translate the failed block when invoked", async () => {
+    vi.mocked(rendererAdapter.renderError).mockClear();
+    const block = makeBlock("Hello");
+    // First call returns an error for the block; the retry's second call
+    // succeeds with a translation result.
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        results: [],
+        errors: [{ blockId: block.id, message: "rate limited" }],
+      } satisfies TranslateResponse)
+      .mockResolvedValueOnce({
+        ok: true,
+        results: [
+          {
+            blockId: block.id,
+            translatedText: "你好",
+            providerId: "glm",
+            modelId: "glm-4",
+            latencyMs: 7,
+          },
+        ],
+      } satisfies TranslateResponse);
+
+    await translateBlocks([block], "zh-CN", send);
+
+    // renderError was called with a retry callback for this block.
+    expect(rendererAdapter.renderError).toHaveBeenCalledTimes(1);
+    expect(rendererAdapter.renderError).toHaveBeenCalledWith(
+      block.id,
+      "rate limited",
+      expect.any(Function)
+    );
+
+    // Only one sendMessage so far (the initial translate).
+    expect(send).toHaveBeenCalledTimes(1);
+
+    // Invoke the retry callback captured from renderError.
+    const retryCallback = vi.mocked(rendererAdapter.renderError).mock.calls[0]![2];
+    expect(typeof retryCallback).toBe("function");
+    await retryCallback();
+
+    // Retry should have sent a second TRANSLATE_BLOCKS message
+    // containing only the failed block.
+    expect(send).toHaveBeenCalledTimes(2);
+    const retryPayload = send.mock.calls[1]![0];
+    expect(retryPayload).toEqual({
+      type: "TRANSLATE_BLOCKS",
+      blocks: [
+        {
+          id: block.id,
+          sourceText: "Hello",
+          sourceLanguage: "auto",
+          domReference: undefined,
+        },
+      ],
+      targetLanguage: "zh-CN",
+    });
+  });
 });
