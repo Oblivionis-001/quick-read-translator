@@ -141,6 +141,27 @@ describe("translateBlocks", () => {
     expect(results).toEqual([]);
   });
 
+  it("renders per-block error markers even when response.ok is false", async () => {
+    // Regression: when the background populates `errors` on failure, the
+    // orchestrator must still surface them with retry buttons rather than
+    // silently dropping the whole batch. Without this branch the per-block
+    // retry UI is unreachable.
+    vi.mocked(rendererAdapter.renderError).mockClear();
+    const block = makeBlock("Hello");
+    const send = vi.fn().mockResolvedValue({
+      ok: false,
+      error: "Network failed",
+      errors: [{ blockId: block.id, message: "Network failed" }],
+    } satisfies TranslateResponse);
+    const results = await translateBlocks([block], "zh-CN", send);
+    expect(results).toEqual([]);
+    expect(rendererAdapter.renderError).toHaveBeenCalledWith(
+      block.id,
+      "Network failed",
+      expect.any(Function)
+    );
+  });
+
   it("renders an error marker for each error in the response", async () => {
     const block = makeBlock("Hello");
     const send = vi.fn().mockResolvedValue({
