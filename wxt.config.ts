@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import tailwindcss from "@tailwindcss/vite";
 
 // See https://wxt.dev/api/config.html
 //
@@ -9,6 +10,9 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   srcDir: "src",
   entrypointsDir: "../entrypoints",
+  vite: () => ({
+    plugins: [tailwindcss()],
+  }),
   manifest: {
     name: "Quick Read Translator",
     description: "Immersive bilingual translation for web pages",
