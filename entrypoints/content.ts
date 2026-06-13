@@ -10,6 +10,7 @@ import {
   type SendMessage,
 } from "@/interface-adapters/content/orchestrator";
 import { renderResults } from "@/interface-adapters/content/renderer-adapter";
+import { isTriggerTranslate } from "@/interface-adapters/content/message-router";
 
 /**
  * Content script entry point.
@@ -72,13 +73,8 @@ export default defineContentScript({
     // updates its own status optimistically), so return false to signal the channel
     // can close immediately.
     browser.runtime.onMessage.addListener((message: unknown) => {
-      if (
-        typeof message === "object" &&
-        message !== null &&
-        (message as { type?: unknown }).type === "TRIGGER_TRANSLATE"
-      ) {
+      if (isTriggerTranslate(message)) {
         void handleTrigger({});
-        return false;
       }
       return false;
     });
