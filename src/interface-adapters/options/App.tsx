@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfigService } from "@/application/ConfigService";
 import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
 import { browser } from "wxt/browser";
@@ -12,22 +12,45 @@ import {
   addProvider,
   deleteProvider,
   updateProvider,
+  validateImportedConfig,
 } from "@/interface-adapters/options/operations";
 
 const configService = new ConfigService(new BrowserStorageConfigRepo());
 
+const SAVE_DEBOUNCE_MS = 400;
+
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     configService.getConfig().then(setConfig);
   }, []);
 
-  const save = useCallback(async (next: AppConfig) => {
-    await configService.saveConfig(next);
+  // On unmount, drop any pending debounced save so we don't fire after teardown.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  // Optimistic UI: state updates immediately; storage write is debounced.
+  // The "saved at" timestamp only updates after a successful storage write.
+  const save = useCallback((next: AppConfig) => {
     setConfig(next);
-    setSavedAt(Date.now());
+    setSavedAt(null);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        await configService.saveConfig(next);
+        setSavedAt(Date.now());
+      } catch (err) {
+        alert(
+          `Save failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }, SAVE_DEBOUNCE_MS);
   }, []);
 
   const handleUpdateProvider = useCallback(
@@ -58,8 +81,11 @@ export default function App() {
   );
 
   const exportConfig = useCallback(async () => {
-    const data = await browser.storage.local.get();
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
+    // Export only the AppConfig payload, so the import contract (file is an
+    // AppConfig) is symmetric.
+    const data = await browser.storage.local.get("appConfig");
+    const payload = data.appConfig ?? config;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -68,7 +94,7 @@ export default function App() {
     a.download = "qrt-config.json";
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [config]);
 
   const importConfig = useCallback(() => {
     const input = document.createElement("input");
@@ -79,16 +105,22 @@ export default function App() {
       if (!file) return;
       try {
         const text = await file.text();
-        const data = JSON.parse(text) as Record<string, unknown>;
-        await browser.storage.local.set(data);
-        // ConfigService caches the prior config; reset by reloading fresh.
-        const refreshed = await new BrowserStorageConfigRepo().load();
-        if (refreshed) {
-          setConfig(refreshed);
-          setSavedAt(Date.now());
+        const parsed = validateImportedConfig(JSON.parse(text));
+        if (!parsed) {
+          alert("Invalid config file: missing required fields.");
+          return;
         }
+        await browser.storage.local.set({ appConfig: parsed });
+        // ConfigService caches the prior config; drop the cache so the next
+        // getConfig() reloads from storage.
+        configService.clearCache();
+        const refreshed = await configService.getConfig();
+        setConfig(refreshed);
+        setSavedAt(Date.now());
       } catch (err) {
-        alert(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+        alert(
+          `Import failed: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     };
     input.click();
