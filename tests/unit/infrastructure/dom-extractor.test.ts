@@ -10,8 +10,6 @@ describe("DOMBlockExtractor", () => {
         <p>Second paragraph.</p>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
@@ -33,8 +31,6 @@ describe("DOMBlockExtractor", () => {
         </ul>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
@@ -55,8 +51,6 @@ describe("DOMBlockExtractor", () => {
         <p>Real text</p>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
@@ -73,8 +67,6 @@ describe("DOMBlockExtractor", () => {
         <p>Second</p>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
@@ -90,8 +82,6 @@ describe("DOMBlockExtractor", () => {
         <p>Stable content</p>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks1 = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
@@ -114,8 +104,6 @@ describe("DOMBlockExtractor", () => {
                 breaks</p>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
@@ -126,8 +114,6 @@ describe("DOMBlockExtractor", () => {
 
   it("returns empty array when no matching elements exist", () => {
     const dom = new JSDOM(`<div><span>nope</span></div>`);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("div")!
@@ -144,8 +130,6 @@ describe("DOMBlockExtractor", () => {
         </ul>
       </article>
     `);
-    global.document = dom.window.document;
-
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
