@@ -46,6 +46,15 @@ export class ConfigService {
     await this.repo.save(config);
   }
 
+  /**
+   * Drop the in-memory cache. The next getConfig() call will reload from the
+   * underlying repo. Used when storage is written outside ConfigService (e.g.
+   * the import flow writes directly via browser.storage.local.set).
+   */
+  clearCache(): void {
+    this.cache = null;
+  }
+
   private createDefault(): AppConfig {
     return {
       targetLanguage: DEFAULT_TARGET_LANGUAGE,
