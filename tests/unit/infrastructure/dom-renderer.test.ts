@@ -40,7 +40,8 @@ describe("DOMRenderer", () => {
     new DOMRenderer(document).render([makeResult("b1", "你好")]);
 
     const translated = document.querySelector(".qrt-translation") as HTMLElement;
-    expect(translated.style.color).toBe("#928c86");
+    // jsdom normalizes #928c86 to rgb() on read-back; assert both forms for clarity.
+    expect(["#928c86", "rgb(146, 140, 134)"]).toContain(translated.style.color);
   });
 
   it("does not duplicate translation on re-render (idempotent)", () => {
