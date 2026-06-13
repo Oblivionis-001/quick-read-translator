@@ -135,4 +135,25 @@ describe("DOMBlockExtractor", () => {
 
     expect(blocks).toHaveLength(0);
   });
+
+  it("does not produce duplicate blocks when matched elements nest inside each other", () => {
+    const dom = new JSDOM(`
+      <article>
+        <ul>
+          <li><p>nested paragraph inside list item</p></li>
+        </ul>
+      </article>
+    `);
+    global.document = dom.window.document;
+
+    const extractor = new DOMBlockExtractor();
+    const blocks = extractor.extractFromElement(
+      dom.window.document.querySelector("article")!
+    );
+
+    // The outermost matched element is <li>; the inner <p> is a descendant
+    // and must be skipped so its text is not rendered twice.
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].sourceText).toBe("nested paragraph inside list item");
+  });
 });
