@@ -2,9 +2,10 @@ import { TranslationResult } from "@/domain/entities/TranslationResult";
 
 /**
  * Renders {@link TranslationResult}s back into the page as inline bilingual
- * translations, and shows retry affordances for failed blocks. The renderer
- * is idempotent: re-rendering the same block does not duplicate output, and
- * re-issuing renderError for a block updates the existing marker in place.
+ * translations, and shows retry affordances for failed blocks. Re-rendering
+ * a block does not duplicate output: when a translation sibling already
+ * exists, its text is updated in place. Re-issuing renderError for a block
+ * also updates the existing marker in place.
  */
 export class DOMRenderer {
   private readonly translatedClass = "qrt-translation";
@@ -16,7 +17,9 @@ export class DOMRenderer {
     for (const result of results) {
       const original = this.findOriginalElement(result.blockId);
       if (!original) continue;
-      if (original.nextElementSibling?.classList.contains(this.translatedClass)) {
+      const existing = original.nextElementSibling;
+      if (existing?.classList.contains(this.translatedClass)) {
+        existing.textContent = result.translatedText;
         continue;
       }
 
