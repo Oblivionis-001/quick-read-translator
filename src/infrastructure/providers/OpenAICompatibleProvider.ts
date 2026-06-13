@@ -4,6 +4,7 @@ import { TranslationResult } from "@/domain/entities/TranslationResult";
 import { ProviderConfig } from "@/shared/types";
 import {
   AuthError,
+  NetworkError,
   ProviderError,
   RateLimitError,
   ValidationError,
@@ -32,22 +33,29 @@ export class OpenAICompatibleProvider implements TranslationProvider {
         .replace(/\{\{text\}\}/g, request.combinedText)
         .replace(/\{\{targetLanguage\}\}/g, request.targetLanguage);
 
-      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.config.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          temperature: this.config.temperature,
-          max_tokens: this.config.maxTokens,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
-      });
+      let response: Response;
+      try {
+        response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.config.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: this.config.model,
+            temperature: this.config.temperature,
+            max_tokens: this.config.maxTokens,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          }),
+        });
+      } catch (e) {
+        throw new NetworkError(
+          e instanceof Error ? e.message : "Network error"
+        );
+      }
 
       const endTime = performance.now();
       const latencyMs = Math.round(endTime - startTime);

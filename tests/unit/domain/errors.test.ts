@@ -76,6 +76,14 @@ describe("Domain error types", () => {
       expect(err.status).toBe(500);
       expect(err.message).toBe("Server error: 500");
     });
+
+    it("preserves subclass name on AuthError", () => {
+      expect(new AuthError().name).toBe("AuthError");
+    });
+
+    it("preserves subclass name on RateLimitError", () => {
+      expect(new RateLimitError().name).toBe("RateLimitError");
+    });
   });
 });
 
@@ -242,5 +250,29 @@ describe("OpenAICompatibleProvider error mapping", () => {
     await expect(
       provider.translate([makeRequest()])
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("throws NetworkError when fetch rejects", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    const provider = new OpenAICompatibleProvider({
+      id: "glm",
+      name: "GLM",
+      baseUrl: "https://x",
+      apiKey: "k",
+      model: "m",
+      temperature: 0.7,
+      maxTokens: 100,
+      systemPrompt: "s",
+      userPromptTemplate: "t",
+    });
+    await expect(
+      provider.translate([
+        new TranslationRequest({
+          blockIds: ["id1"],
+          combinedText: "Hi",
+          targetLanguage: "zh-CN",
+        }),
+      ])
+    ).rejects.toBeInstanceOf(NetworkError);
   });
 });
