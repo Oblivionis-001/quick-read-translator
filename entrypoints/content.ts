@@ -11,11 +11,29 @@ import {
 } from "@/interface-adapters/content/orchestrator";
 import { renderResults } from "@/interface-adapters/content/renderer-adapter";
 
+/**
+ * Content script entry point.
+ *
+ * Extraction is deferred to each trigger invocation rather than running
+ * once at script load. This keeps blocks fresh on SPAs that mutate the
+ * DOM after load (e.g. route changes, infinite scroll): every hotkey /
+ * selection / hover-button trigger re-runs extractFromElement(document.body)
+ * against the current DOM, so the orchestrator never sees a stale list.
+ *
+ * The trade-off: on the very first hover, the hovered element's
+ * data-qrt-block-id attribute is not set yet (it is populated by
+ * extraction). The hover-button trigger's mouseover handler resolves the
+ * block id to null in that case, and selectBlocksForTranslation falls
+ * back to "first block". Subsequent hovers see the freshly-tagged
+ * attribute and resolve correctly. Auto-retranslation on DOM mutation
+ * (without an explicit trigger) is intentionally out of MVP scope.
+ */
 export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
+    // Construct once: the extractor is stateless and cheap to keep
+    // around. The actual DOM query is what we want to repeat per trigger.
     const extractor = new DOMBlockExtractor();
-    const blocks = extractor.extractFromElement(document.body);
 
     // Bind once so the SendMessage contract (unknown in, unknown out) is
     // satisfied by browser.runtime.sendMessage's looser generic signature.
@@ -26,6 +44,10 @@ export default defineContentScript({
       selection?: string | null;
       hoverBlockId?: string | null;
     }): Promise<void> {
+      // Re-extract on every trigger so blocks reflect the current DOM.
+      // This also (re)tags elements with data-qrt-block-id, which
+      // subsequent hovers rely on.
+      const blocks = extractor.extractFromElement(document.body);
       const selected = selectBlocksForTranslation(
         blocks,
         opts.selection ?? null,
