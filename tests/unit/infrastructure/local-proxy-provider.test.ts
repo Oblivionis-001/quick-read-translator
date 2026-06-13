@@ -154,8 +154,6 @@ describe("LocalProxyProvider", () => {
   });
 
   it("throws ValidationError when results is missing from response", async () => {
-    fetchMock.mockResolvedValue(okResponse(undefined));
-    // response returns `{ results: undefined }`
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
