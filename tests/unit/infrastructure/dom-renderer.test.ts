@@ -56,6 +56,19 @@ describe("DOMRenderer", () => {
     expect(document.querySelectorAll(".qrt-translation")).toHaveLength(1);
   });
 
+  it("updates translation in place when block is re-rendered with new text", () => {
+    const dom = new JSDOM(`<p data-qrt-block-id="block-hello">Hello</p>`);
+    const document = dom.window.document;
+    const renderer = new DOMRenderer(document);
+
+    renderer.render([makeResult("block-hello", "你好")]);
+    renderer.render([makeResult("block-hello", "你好世界")]);
+
+    const translations = document.querySelectorAll(".qrt-translation");
+    expect(translations).toHaveLength(1);
+    expect(translations[0].textContent).toBe("你好世界");
+  });
+
   it("does nothing when original element is missing", () => {
     const dom = new JSDOM(`<article><p>Nothing here</p></article>`);
     const document = dom.window.document;
