@@ -11,6 +11,8 @@ import {
 } from "@/interface-adapters/content/orchestrator";
 import { renderResults } from "@/interface-adapters/content/renderer-adapter";
 import { isTriggerTranslate } from "@/interface-adapters/content/message-router";
+import { ConfigService } from "@/application/ConfigService";
+import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
 
 /**
  * Content script entry point.
@@ -28,10 +30,17 @@ import { isTriggerTranslate } from "@/interface-adapters/content/message-router"
  * back to "first block". Subsequent hovers see the freshly-tagged
  * attribute and resolve correctly. Auto-retranslation on DOM mutation
  * (without an explicit trigger) is intentionally out of MVP scope.
+ *
+ * Trigger wiring honors the user's configured hotkey and the per-trigger
+ * toggle flags (hotkey is always on; selection and hover-button are
+ * gated by their respective config flags). If config load fails (e.g.
+ * storage unavailable), fall back to the default hotkey and all triggers
+ * enabled so the user still gets a working extension rather than a dead
+ * one.
  */
 export default defineContentScript({
   matches: ["<all_urls>"],
-  main() {
+  async main() {
     // Construct once: the extractor is stateless and cheap to keep
     // around. The actual DOM query is what we want to repeat per trigger.
     const extractor = new DOMBlockExtractor();
@@ -58,15 +67,36 @@ export default defineContentScript({
       renderResults(results);
     }
 
-    listenHotkey("Alt+T", () => {
+    // Load user config to honor the configured hotkey and trigger toggles.
+    // The hotkey is always registered; selection and hover-button are gated
+    // by their respective flags. Fall back to defaults if config load fails
+    // so the extension remains usable when storage is unavailable.
+    let hotkey = "Alt+T";
+    let selectionTriggerEnabled = true;
+    let hoverButtonEnabled = true;
+    try {
+      const configService = new ConfigService(new BrowserStorageConfigRepo());
+      const config = await configService.getConfig();
+      hotkey = config.hotkey;
+      selectionTriggerEnabled = config.selectionTriggerEnabled;
+      hoverButtonEnabled = config.hoverButtonEnabled;
+    } catch (err) {
+      console.error("[qrt] failed to load config; using defaults:", err);
+    }
+
+    listenHotkey(hotkey, () => {
       void handleTrigger({});
     });
-    listenSelection((selection) => {
-      void handleTrigger({ selection });
-    });
-    createHoverButton((blockId) => {
-      void handleTrigger({ hoverBlockId: blockId });
-    });
+    if (selectionTriggerEnabled) {
+      listenSelection((selection) => {
+        void handleTrigger({ selection });
+      });
+    }
+    if (hoverButtonEnabled) {
+      createHoverButton((blockId) => {
+        void handleTrigger({ hoverBlockId: blockId });
+      });
+    }
 
     // Popup → content message bridge. The popup sends `{ type: "TRIGGER_TRANSLATE" }`
     // to ask this tab to translate. We don't need an async sendResponse (the popup
@@ -80,4 +110,3 @@ export default defineContentScript({
     });
   },
 });
-
