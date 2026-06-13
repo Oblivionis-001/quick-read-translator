@@ -47,28 +47,25 @@ export class OpenAICompatibleProvider implements TranslationProvider {
       const latencyMs = Math.round(endTime - startTime);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const error = await response.text();
+        throw new Error(`Provider error ${response.status}: ${error}`);
       }
 
       const data = await response.json();
       const content: string = data.choices?.[0]?.message?.content ?? "";
 
       const lines = content.split("\n");
-      const blockId = request.blockIds[0] ?? "";
-
-      const translatedText = lines.length >= request.blockIds.length
-        ? content
-        : content;
-
-      results.push(
-        new TranslationResult({
-          blockId,
-          translatedText,
-          providerId: this.config.id,
-          modelId: this.config.model,
-          latencyMs,
-        })
-      );
+      request.blockIds.forEach((blockId, index) => {
+        results.push(
+          new TranslationResult({
+            blockId,
+            translatedText: lines[index] ?? content,
+            providerId: this.id,
+            modelId: this.config.model,
+            latencyMs,
+          })
+        );
+      });
     }
 
     return results;
