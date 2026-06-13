@@ -140,4 +140,22 @@ describe("DOMBlockExtractor", () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].sourceText).toBe("nested paragraph inside list item");
   });
+
+  it("tags each extracted source element with data-qrt-block-id matching block.id", () => {
+    const dom = new JSDOM(`
+      <article>
+        <p>First paragraph.</p>
+        <p>Second paragraph.</p>
+      </article>
+    `);
+    const extractor = new DOMBlockExtractor();
+    const blocks = extractor.extractFromElement(
+      dom.window.document.querySelector("article")!
+    );
+
+    const paragraphs = dom.window.document.querySelectorAll("p");
+    expect(blocks).toHaveLength(2);
+    expect(paragraphs[0].getAttribute("data-qrt-block-id")).toBe(blocks[0].id);
+    expect(paragraphs[1].getAttribute("data-qrt-block-id")).toBe(blocks[1].id);
+  });
 });

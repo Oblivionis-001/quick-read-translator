@@ -16,13 +16,13 @@ export class DOMBlockExtractor {
 
       const text = this.getVisibleText(el);
       if (text.length > 0) {
-        blocks.push(
-          new ParagraphBlock({
-            sourceText: text,
-            sourceLanguage: "auto",
-            domReference: this.generateDomReference(el),
-          })
-        );
+        const block = new ParagraphBlock({
+          sourceText: text,
+          sourceLanguage: "auto",
+          domReference: this.generateDomReference(el),
+        });
+        el.setAttribute("data-qrt-block-id", block.id);
+        blocks.push(block);
       }
     }
 
