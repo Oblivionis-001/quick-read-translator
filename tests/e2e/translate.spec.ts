@@ -8,7 +8,7 @@
  *
  * Prerequisites (see `tests/e2e/fixtures.ts` for the shared setup):
  *  - Run `npm run build` so `.output/chrome-mv3/` is fresh.
- *  - `npx playwright install chrome` for the Chrome channel.
+ *  - `npx playwright install chromium` for Playwright's bundled Chromium.
  *  - A display (Chrome extensions do not load in headless). On a headless
  *    dev box, wrap the run: `xvfb-run -a npm run e2e`.
  *

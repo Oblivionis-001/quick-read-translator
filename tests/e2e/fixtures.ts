@@ -24,7 +24,7 @@
 import { test as base, chromium, type BrowserContext } from "@playwright/test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 // ESM equivalent of CommonJS __dirname. The project's package.json has
@@ -48,8 +48,12 @@ export const test = base.extend<{
         `--load-extension=${pathToExtension}`,
       ],
     });
-    await use(context);
-    await context.close();
+    try {
+      await use(context);
+    } finally {
+      await context.close();
+      rmSync(userDataDir, { recursive: true, force: true });
+    }
   },
   extensionId: async ({ context }, use) => {
     // MV3 background is a service worker. It may already be registered by
