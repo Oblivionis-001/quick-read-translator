@@ -4,7 +4,7 @@ export interface ParagraphBlockProps {
   readonly sourceText: string;
   readonly sourceLanguage: string;
   readonly domReference?: string;
-  readonly contextBlocks?: ParagraphBlock[];
+  readonly contextBlocks?: string[];
 }
 
 export class ParagraphBlock {
@@ -12,7 +12,7 @@ export class ParagraphBlock {
   readonly sourceText: string;
   readonly sourceLanguage: string;
   readonly domReference?: string;
-  readonly contextBlocks: ParagraphBlock[];
+  readonly contextBlocks: string[];
 
   constructor(props: ParagraphBlockProps) {
     this.id = sha256(`${props.sourceText}:${props.sourceLanguage}`);
