@@ -253,18 +253,11 @@ describe("OpenAICompatibleProvider error mapping", () => {
   });
 
   it("throws NetworkError when fetch rejects", async () => {
-    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
-    const provider = new OpenAICompatibleProvider({
-      id: "glm",
-      name: "GLM",
-      baseUrl: "https://x",
-      apiKey: "k",
-      model: "m",
-      temperature: 0.7,
-      maxTokens: 100,
-      systemPrompt: "s",
-      userPromptTemplate: "t",
-    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+    );
+    const provider = new OpenAICompatibleProvider(testConfig);
     await expect(
       provider.translate([
         new TranslationRequest({
