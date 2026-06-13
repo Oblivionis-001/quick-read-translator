@@ -4,6 +4,7 @@ import {
   createProvider,
   deleteProvider,
   updateProvider,
+  validateImportedConfig,
 } from "@/interface-adapters/options/operations";
 import type { AppConfig, ProviderConfig } from "@/shared/types";
 
@@ -101,6 +102,68 @@ describe("operations", () => {
       const config = makeConfig([makeProvider("a")]);
       updateProvider(config, "a", { apiKey: "sk-x" });
       expect(config.providers[0].apiKey).toBe("");
+    });
+  });
+
+  describe("validateImportedConfig", () => {
+    it("returns the config when shape is valid", () => {
+      const config = makeConfig([makeProvider("a")]);
+      const result = validateImportedConfig(config);
+      expect(result).not.toBeNull();
+      expect(result!.currentProviderId).toBe("a");
+      expect(result!.providers).toHaveLength(1);
+    });
+
+    it("returns null when providers missing", () => {
+      const data = {
+        targetLanguage: "zh-CN",
+        currentProviderId: "a",
+      };
+      expect(validateImportedConfig(data)).toBeNull();
+    });
+
+    it("returns null when providers array is empty", () => {
+      const data = {
+        ...makeConfig([makeProvider("a")]),
+        providers: [],
+      };
+      expect(validateImportedConfig(data)).toBeNull();
+    });
+
+    it("returns null when currentProviderId not in providers", () => {
+      const data = makeConfig([makeProvider("a")]);
+      data.currentProviderId = "nonexistent";
+      expect(validateImportedConfig(data)).toBeNull();
+    });
+
+    it("returns null when data is not an object", () => {
+      expect(validateImportedConfig(null)).toBeNull();
+      expect(validateImportedConfig(undefined)).toBeNull();
+      expect(validateImportedConfig("string")).toBeNull();
+      expect(validateImportedConfig(42)).toBeNull();
+      expect(validateImportedConfig([])).toBeNull();
+    });
+
+    it("returns null when a provider is missing a required string field", () => {
+      const base = makeConfig([makeProvider("a")]);
+      // remove baseUrl (required string)
+      const badProvider = { ...base.providers[0] } as Record<string, unknown>;
+      delete badProvider.baseUrl;
+      const data = { ...base, providers: [badProvider] };
+      expect(validateImportedConfig(data)).toBeNull();
+    });
+
+    it("returns null when a provider field has wrong type", () => {
+      const base = makeConfig([makeProvider("a")]);
+      const badProvider = { ...base.providers[0], baseUrl: 123 };
+      const data = { ...base, providers: [badProvider] };
+      expect(validateImportedConfig(data)).toBeNull();
+    });
+
+    it("returns null when currentProviderId is not a string", () => {
+      const base = makeConfig([makeProvider("a")]);
+      const data = { ...base, currentProviderId: 42 };
+      expect(validateImportedConfig(data)).toBeNull();
     });
   });
 });
