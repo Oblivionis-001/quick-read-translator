@@ -7,6 +7,7 @@
     "dev": "wxt",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
+    "build:all": "npm run build && npm run build:firefox",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "e2e": "playwright test",
