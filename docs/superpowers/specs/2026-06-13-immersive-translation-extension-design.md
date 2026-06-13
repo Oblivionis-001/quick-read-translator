@@ -259,6 +259,8 @@ quick-read-translator/
 └── vitest.config.ts
 ```
 
+设计文档同时包含第 12 节“UI 设计参考（Sequoia Capital 风格）”。
+
 ---
 
 ## 9. 首期范围（MVP）
@@ -295,15 +297,78 @@ quick-read-translator/
 
 ---
 
-## 11. 风险与假设
+## 12. UI 设计参考（Sequoia Capital 风格）
 
-### 11.1 风险
+Options 页面与 Popup 的 UI 风格参考 [Sequoia Capital 团队页](https://sequoiacap.com/our-team/?_role=seed-early)。
+
+### 12.1 整体风格
+
+- **极简、高级、编辑感**：大量留白，信息密度低，内容居中。
+- **无过重装饰**：不使用大色块背景或复杂渐变，靠字体层级和间距建立视觉秩序。
+- **卡片式网格**：配置项可按模块分组，类似团队页的人物卡片布局。
+
+### 12.2 配色
+
+从页面 CSS 变量中提取的核心色板：
+
+| 用途 | 颜色 |
+|------|------|
+| 主品牌色 | `#00a071`（Sequoia Green） |
+| 主品牌 hover/深色 | `#007354`（Dark Green） |
+| 背景色 | `#f3f3f2`（Sequoia White） |
+| 主文字色 | `#1b1916`（Sequoia Black） |
+| 次要文字/边框 | `#928c86`（Dark Grey） |
+| 提示/禁用 | `#a8a39e`（Light Grey） |
+| 强调色（状态、按钮） | `#1f8ac4`（Bright Blue） |
+| 错误/警告 | `#eb2926`（Bright Red） |
+
+### 12.3 字体
+
+- 参考页面使用 `pitch-sans`（Klim Type Foundry，付费字体）。
+- 扩展中采用免费替代方案：
+  - 主要：**Inter**（Google Fonts，SIL 协议，最接近 neo-grotesque 风格）
+  - 备选：**IBM Plex Sans**（技术感更强，带等宽 companion）
+  - 系统 fallback：`ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`
+
+### 12.4 字号与间距
+
+参考页面预设：
+
+| Token | 值 | 用途 |
+|-------|-----|------|
+| small | 13px | 标签、辅助说明 |
+| medium | 20px | 小标题、配置项名称 |
+| large | 36px | 区块标题 |
+| x-large | 42px | 页面主标题 |
+| root padding | 2.4rem | 页面左右内边距 |
+| gutter | 4.8rem | 大区块间距 |
+| block gap | 2.4rem | 元素之间间距 |
+
+### 12.5 按钮与表单
+
+- 按钮：深色背景 `#32373c`，白色文字，无圆角或极小圆角（0-2px），无描边。
+- 输入框：浅色背景 `#ffffff`，细边框 `#928c86`，聚焦时边框变为主品牌绿 `#00a071`。
+- 卡片：白色背景，轻微阴影或仅底部边框分隔，无强投影。
+- Hover 状态：文字/链接变为主品牌绿；按钮背景变深。
+
+### 12.6 应用到扩展
+
+- **Options 页面**：采用居中窄布局（max-width ~62rem），分段卡片展示 Provider、触发器、缓存、导入导出等配置。
+- **Popup**：保持同样配色，仅保留核心操作：当前页翻译开关、快速设置入口、状态提示。
+- **悬浮按钮**：圆形或圆角矩形，主品牌绿背景，白色图标，hover 加深。
+- **内联译文**：以 Sequoia Grey `#928c86` 或 Dark Green `#007354` 显示译文，与原文形成层级但不喧宾夺主。
+
+---
+
+## 13. 风险与假设
+
+### 13.1 风险
 
 - **GLM-4-Flash-250414 免费额度/稳定性变化**：需要支持用户切换其他 OpenAI-compatible 端点。
 - **跨浏览器 MV3 差异**：Firefox MV2 与 Chrome MV3 的服务 worker 行为存在差异，需要充分测试。
 - **网页 DOM 结构复杂**：段落块识别可能在某些动态网站（SPA）上失效，需要迭代提取策略。
 
-### 11.2 假设
+### 13.2 假设
 
 - 用户具备一定的 API key 配置能力。
 - 目标网页允许内容脚本注入和修改 DOM。
