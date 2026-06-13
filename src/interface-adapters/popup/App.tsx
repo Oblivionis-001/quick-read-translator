@@ -6,12 +6,20 @@ import type { AppConfig } from "@/shared/types";
 
 const configService = new ConfigService(new BrowserStorageConfigRepo());
 
-type Status = "ready" | "translating" | "done" | "error";
+type Status =
+  | "ready"
+  | "translating"
+  | "done"
+  | "unsupported-url"
+  | "no-content-script"
+  | "error";
 
 const STATUS_TEXT: Record<Status, string> = {
   ready: "",
   translating: "Translating…",
   done: "Done",
+  "unsupported-url": "Open a web page to translate.",
+  "no-content-script": "Reload the page and try again.",
   error: "Failed to trigger translation",
 };
 
@@ -36,12 +44,34 @@ export default function App() {
         setStatus("error");
         return;
       }
+      // Filter out restricted schemes (chrome://, chrome-extension://,
+      // PDF viewers, file://, etc.) up front: sendMessage to these will
+      // always throw because no content script is permitted there. With
+      // activeTab + host_permissions: ["<all_urls>"], tab.url is readable
+      // when the popup is invoked; if it is undefined for any reason the
+      // regex will simply not match and we fall through to the
+      // unsupported-url branch, which is a safe fallback.
+      const url = tab.url ?? "";
+      if (!/^https?:\/\//i.test(url)) {
+        setStatus("unsupported-url");
+        return;
+      }
       await browser.tabs.sendMessage(tab.id, { type: "TRIGGER_TRANSLATE" });
       setStatus("done");
       setTimeout(() => setStatus("ready"), STATUS_RESET_MS);
     } catch (err) {
-      console.error("[qrt] popup trigger failed:", err);
-      setStatus("error");
+      // The classic "Could not establish connection. Receiving end does
+      // not exist." happens when the content script has not been injected
+      // yet (e.g. the tab was opened before the extension was installed,
+      // or the page is mid-reload). Tell the user to reload instead of
+      // surfacing a generic "broken" message.
+      const message = err instanceof Error ? err.message : String(err);
+      if (/receiving end does not exist/i.test(message)) {
+        setStatus("no-content-script");
+      } else {
+        console.error("[qrt] popup trigger failed:", err);
+        setStatus("error");
+      }
     }
   };
 
@@ -86,7 +116,11 @@ export default function App() {
       {STATUS_TEXT[status] && (
         <p
           className={`text-xs mt-2 ${
-            status === "error" ? "text-sequoia-red" : "text-sequoia-grey"
+            status === "error" ||
+            status === "unsupported-url" ||
+            status === "no-content-script"
+              ? "text-sequoia-red"
+              : "text-sequoia-grey"
           }`}
         >
           {STATUS_TEXT[status]}
