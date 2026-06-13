@@ -16,7 +16,7 @@
 
 import type { ParagraphBlock } from "@/domain/entities/ParagraphBlock";
 import { TranslationResult } from "@/domain/entities/TranslationResult";
-import { renderError } from "./renderer-adapter";
+import { renderError, renderResults } from "./renderer-adapter";
 
 /**
  * Shape of a single result block coming back from the background script.
@@ -132,12 +132,37 @@ export async function translateBlocks(
 
   if (response.errors?.length) {
     for (const err of response.errors) {
+      const failedBlock = blocks.find((b) => b.id === err.blockId);
       renderError(err.blockId, err.message, () => {
-        // Retry not wired yet; will be added when scheduler exposes
-        // per-block retry.
+        // Re-translate only the failed block, then render its result
+        // in place of the error marker. If we can't find the block in
+        // the original list (e.g. DOM changed between trigger and
+        // retry), there is nothing to retry; silently no-op.
+        if (!failedBlock) return;
+        translateSingleBlock(failedBlock, targetLanguage, sendMessage)
+          .then(renderResults)
+          .catch((e) => console.error("[qrt] retry failed:", e));
       });
     }
   }
 
   return results;
+}
+
+/**
+ * Re-translate a single block (used by the per-block retry callback).
+ *
+ * This is a thin wrapper around translateBlocks that reuses its mapping
+ * and error-rendering logic, but is captured here as a named helper so
+ * the retry wiring inside translateBlocks stays readable.
+ *
+ * Returns the (possibly empty) list of TranslationResult entities; the
+ * caller (the retry callback) hands them straight to renderResults.
+ */
+export async function translateSingleBlock(
+  block: ParagraphBlock,
+  targetLanguage: string,
+  sendMessage: SendMessage
+): Promise<TranslationResult[]> {
+  return translateBlocks([block], targetLanguage, sendMessage);
 }
