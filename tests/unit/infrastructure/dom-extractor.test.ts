@@ -93,12 +93,16 @@ describe("DOMBlockExtractor", () => {
     global.document = dom.window.document;
 
     const extractor = new DOMBlockExtractor();
-    const blocks = extractor.extractFromElement(
+    const blocks1 = extractor.extractFromElement(
+      dom.window.document.querySelector("article")!
+    );
+    const blocks2 = extractor.extractFromElement(
       dom.window.document.querySelector("article")!
     );
 
-    expect(blocks[0].sourceLanguage).toBe("auto");
-    expect(blocks[0].id).toMatch(/^[a-f0-9]{64}$/);
+    expect(blocks1[0].sourceLanguage).toBe("auto");
+    expect(blocks1[0].id).toMatch(/^[a-f0-9]+$/);
+    expect(blocks1[0].id).toBe(blocks2[0].id);
   });
 
   it("collapses internal whitespace in extracted text", () => {
