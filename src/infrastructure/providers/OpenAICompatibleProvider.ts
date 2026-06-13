@@ -2,6 +2,12 @@ import { TranslationProvider } from "@/domain/interfaces/TranslationProvider";
 import { TranslationRequest } from "@/domain/entities/TranslationRequest";
 import { TranslationResult } from "@/domain/entities/TranslationResult";
 import { ProviderConfig } from "@/shared/types";
+import {
+  AuthError,
+  ProviderError,
+  RateLimitError,
+  ValidationError,
+} from "@/domain/errors";
 
 export class OpenAICompatibleProvider implements TranslationProvider {
   readonly id: string;
@@ -47,12 +53,15 @@ export class OpenAICompatibleProvider implements TranslationProvider {
       const latencyMs = Math.round(endTime - startTime);
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Provider error ${response.status}: ${error}`);
+        throw await this.mapHttpError(response);
       }
 
       const data = await response.json();
-      const content: string = data.choices?.[0]?.message?.content ?? "";
+      const content: unknown = data?.choices?.[0]?.message?.content;
+
+      if (typeof content !== "string") {
+        throw new ValidationError();
+      }
 
       const lines = content.split("\n");
       request.blockIds.forEach((blockId, index) => {
@@ -69,5 +78,31 @@ export class OpenAICompatibleProvider implements TranslationProvider {
     }
 
     return results;
+  }
+
+  private async mapHttpError(
+    response: Response
+  ): Promise<AuthError | RateLimitError | ProviderError> {
+    const status = response.status;
+
+    if (status === 401 || status === 403) {
+      return new AuthError();
+    }
+
+    if (status === 429) {
+      const retryAfterHeader = response.headers?.get("retry-after");
+      const retryAfter = retryAfterHeader
+        ? Number(retryAfterHeader)
+        : undefined;
+      return new RateLimitError(
+        Number.isFinite(retryAfter) ? (retryAfter as number) : undefined
+      );
+    }
+
+    if (status >= 500 && status < 600) {
+      return new ProviderError(status, `Server error: ${status}`);
+    }
+
+    return new ProviderError(status, `Provider error: ${status}`);
   }
 }
