@@ -116,6 +116,22 @@ export async function translateBlocks(
 
   if (!response.ok) {
     console.error("[qrt] translation failed:", response.error);
+    // Surface per-block errors with retry buttons even when the overall
+    // batch failed. Without this branch, a background that populates
+    // `errors` on failure would silently drop the whole translation,
+    // leaving the user with no visible signal that anything went wrong
+    // and no path to retry the failed blocks.
+    if (response.errors?.length) {
+      for (const err of response.errors) {
+        const failedBlock = blocks.find((b) => b.id === err.blockId);
+        renderError(err.blockId, err.message, () => {
+          if (!failedBlock) return;
+          translateSingleBlock(failedBlock, targetLanguage, sendMessage)
+            .then(renderResults)
+            .catch((e) => console.error("[qrt] retry failed:", e));
+        });
+      }
+    }
     return [];
   }
 
