@@ -11,7 +11,7 @@ export interface CacheKeyInput {
 
 export class HashCache {
   static makeKey(input: CacheKeyInput): string {
-    const raw = `${input.sourceText}:${input.sourceLanguage}:${input.targetLanguage}:${input.providerId}:${input.modelId}:${input.promptVersion}`;
+    const raw = JSON.stringify(input, Object.keys(input).sort());
     return sha256(raw);
   }
 }

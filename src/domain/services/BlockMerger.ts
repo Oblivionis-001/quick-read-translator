@@ -23,6 +23,16 @@ export class BlockMerger {
     for (const block of blocks) {
       const blockTokens = Math.ceil(block.sourceText.length * this.tokensPerChar);
 
+      if (blockTokens > this.maxTokens) {
+        if (currentBatch.length > 0) {
+          requests.push(this.createRequest(currentBatch, targetLanguage));
+          currentBatch = [];
+          currentTokens = 0;
+        }
+        requests.push(this.createRequest([block], targetLanguage));
+        continue;
+      }
+
       if (currentTokens + blockTokens > this.maxTokens && currentBatch.length > 0) {
         requests.push(this.createRequest(currentBatch, targetLanguage));
         currentBatch = [];

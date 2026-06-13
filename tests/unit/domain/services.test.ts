@@ -39,6 +39,29 @@ describe("BlockMerger", () => {
     expect(requests[1].combinedText).toBe("Good morning everyone");
     expect(requests[2].combinedText).toBe("How are you");
   });
+
+  it("returns empty array for empty blocks", () => {
+    const merger = new BlockMerger({ maxTokens: 100 });
+    const requests = merger.merge([], "zh-CN");
+    expect(requests).toEqual([]);
+  });
+
+  it("emits a single oversized block as its own batch", () => {
+    const longText = "a".repeat(100);
+    const blocks = [
+      new ParagraphBlock({ sourceText: "short", sourceLanguage: "en" }),
+      new ParagraphBlock({ sourceText: longText, sourceLanguage: "en" }),
+    ];
+    const merger = new BlockMerger({ maxTokens: 10, tokensPerChar: 0.5 });
+    const requests = merger.merge(blocks, "zh");
+
+    // "short" = 5 chars * 0.5 = 2.5 => ceil = 3 tokens
+    // longText = 100 chars * 0.5 = 50 tokens > maxTokens=10, so it goes alone
+    expect(requests).toHaveLength(2);
+    expect(requests[0].combinedText).toBe("short");
+    expect(requests[1].combinedText).toBe(longText);
+    expect(requests[1].blockIds).toHaveLength(1);
+  });
 });
 
 describe("HashCache", () => {
@@ -56,5 +79,20 @@ describe("HashCache", () => {
 
     expect(key1).toBeTruthy();
     expect(key1).toBe(key2);
+  });
+
+  it("produces different keys when modelId changes", () => {
+    const base = {
+      sourceText: "Hello",
+      sourceLanguage: "en",
+      targetLanguage: "zh",
+      providerId: "openai",
+      modelId: "gpt-4",
+      promptVersion: "1.0",
+    };
+    const key1 = HashCache.makeKey(base);
+    const key2 = HashCache.makeKey({ ...base, modelId: "gpt-3.5" });
+
+    expect(key1).not.toBe(key2);
   });
 });
