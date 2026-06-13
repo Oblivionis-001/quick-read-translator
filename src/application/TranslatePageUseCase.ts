@@ -36,6 +36,18 @@ export interface TranslatePageUseCaseDeps {
    * produced by an older prompt never satisfy a newer cache key.
    */
   promptVersion: string;
+  /**
+   * The resolved provider id of the provider that will be used to translate
+   * any cache-missed blocks. Used as part of the cache key for both lookup
+   * and write-back so the two passes use identical keys.
+   */
+  providerId: string;
+  /**
+   * The resolved model id of the provider that will be used to translate any
+   * cache-missed blocks. Used as part of the cache key for both lookup and
+   * write-back so the two passes use identical keys.
+   */
+  modelId: string;
 }
 
 /**
@@ -51,12 +63,13 @@ export interface TranslatePageUseCaseDeps {
  *      cache, and return cached + freshly-translated results together.
  *
  * The cache key is derived from (sourceText, sourceLanguage, targetLanguage,
- * providerId, modelId, promptVersion). On the lookup pass we cannot know the
- * provider/model that will be selected, so we use placeholder sentinel
- * values "current" — these will only collide with a previously-written entry
- * that was itself written under the same sentinel, i.e. one produced by an
- * equivalent lookup. Real provider/model ids are stamped onto entries
- * written back after a fresh translation.
+ * providerId, modelId, promptVersion). The resolved providerId and modelId
+ * for this run are passed in as deps and used in BOTH the lookup key and the
+ * write-back key, so a second execute() with the same inputs finds the entry
+ * the first call wrote. The cached entry's providerId/modelId fields retain
+ * whatever the originating provider stamped on them (preserving the original
+ * provider info), but those values are NOT used to derive the cache key —
+ * only the deps values are.
  */
 export class TranslatePageUseCase {
   constructor(private readonly deps: TranslatePageUseCaseDeps) {}
@@ -73,8 +86,8 @@ export class TranslatePageUseCase {
         sourceText: block.sourceText,
         sourceLanguage: block.sourceLanguage,
         targetLanguage,
-        providerId: "current",
-        modelId: "current",
+        providerId: this.deps.providerId,
+        modelId: this.deps.modelId,
         promptVersion: this.deps.promptVersion,
       });
 
@@ -109,8 +122,8 @@ export class TranslatePageUseCase {
         sourceText: block.sourceText,
         sourceLanguage: block.sourceLanguage,
         targetLanguage,
-        providerId: result.providerId,
-        modelId: result.modelId,
+        providerId: this.deps.providerId,
+        modelId: this.deps.modelId,
         promptVersion: this.deps.promptVersion,
       });
 

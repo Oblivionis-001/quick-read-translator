@@ -53,6 +53,8 @@ describe("TranslatePageUseCase", () => {
       merger,
       cache,
       promptVersion: "v1",
+      providerId: "fake",
+      modelId: "m",
     });
     const results = await useCase.execute(blocks, "zh-CN");
 
@@ -92,6 +94,8 @@ describe("TranslatePageUseCase", () => {
       merger,
       cache,
       promptVersion: "v1",
+      providerId: "fake",
+      modelId: "m",
     });
     const results = await useCase.execute(blocks, "zh-CN");
 
@@ -146,6 +150,8 @@ describe("TranslatePageUseCase", () => {
       merger,
       cache,
       promptVersion: "v1",
+      providerId: "fake",
+      modelId: "m",
     });
     await useCase.execute(blocks, "zh-CN");
 
@@ -157,5 +163,64 @@ describe("TranslatePageUseCase", () => {
     expect(entry.providerId).toBe("fake");
     expect(entry.modelId).toBe("m");
     expect(typeof entry.createdAt).toBe("number");
+  });
+
+  it("regression: second execute() over the same block is a cache hit (scheduler not invoked again)", async () => {
+    const blocks = [
+      new ParagraphBlock({ sourceText: "Hello", sourceLanguage: "en" }),
+    ];
+
+    const scheduler = {
+      schedule: vi
+        .fn<(requests: TranslationRequest[]) => Promise<TranslationResult[]>>()
+        .mockResolvedValue([
+          new TranslationResult({
+            blockId: blocks[0].id,
+            translatedText: "你好",
+            providerId: "glm",
+            modelId: "glm-4-flash",
+            latencyMs: 10,
+          }),
+        ]),
+    };
+
+    const merger = {
+      merge: vi
+        .fn<(blocks: ParagraphBlock[], targetLanguage: string) => TranslationRequest[]>()
+        .mockReturnValue([
+          new TranslationRequest({
+            blockIds: [blocks[0].id],
+            combinedText: "Hello",
+            targetLanguage: "zh-CN",
+          }),
+        ]),
+    };
+
+    // Real in-memory cache that actually persists between execute() calls.
+    const store = new Map<string, CacheEntry>();
+    const cache = {
+      get: vi.fn<(key: string) => Promise<CacheEntry | null>>().mockImplementation((key) => Promise.resolve(store.get(key) ?? null)),
+      set: vi.fn<(key: string, entry: CacheEntry) => Promise<void>>().mockImplementation((key, entry) => {
+        store.set(key, entry);
+        return Promise.resolve();
+      }),
+    };
+
+    const useCase = new TranslatePageUseCase({
+      scheduler,
+      merger,
+      cache,
+      promptVersion: "v1",
+      providerId: "glm",
+      modelId: "glm-4-flash",
+    });
+
+    // First pass: cache miss, scheduler invoked, result cached.
+    await useCase.execute(blocks, "zh-CN");
+    expect(scheduler.schedule).toHaveBeenCalledTimes(1);
+
+    // Second pass: cache hit, scheduler NOT invoked.
+    await useCase.execute(blocks, "zh-CN");
+    expect(scheduler.schedule).toHaveBeenCalledTimes(1);
   });
 });
