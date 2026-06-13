@@ -66,6 +66,22 @@ export default defineContentScript({
     createHoverButton((blockId) => {
       void handleTrigger({ hoverBlockId: blockId });
     });
+
+    // Popup → content message bridge. The popup sends `{ type: "TRIGGER_TRANSLATE" }`
+    // to ask this tab to translate. We don't need an async sendResponse (the popup
+    // updates its own status optimistically), so return false to signal the channel
+    // can close immediately.
+    browser.runtime.onMessage.addListener((message: unknown) => {
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        (message as { type?: unknown }).type === "TRIGGER_TRANSLATE"
+      ) {
+        void handleTrigger({});
+        return false;
+      }
+      return false;
+    });
   },
 });
 
