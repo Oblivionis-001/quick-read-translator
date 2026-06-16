@@ -43,11 +43,11 @@ jobs:
 
       - name: Package Chrome zip
         run: |
-          cd .output/chrome-mv3 && zip -r "../../quick-read-translator-${{ steps.version.version }}-chrome-mv3.zip" . -x ".*"
+          cd .output/chrome-mv3 && zip -r "../../quick-read-translator-${{ steps.version.outputs.version }}-chrome-mv3.zip" . -x ".*"
 
       - name: Package Firefox zip
         run: |
-          cd .output/firefox-mv2 && zip -r "../../quick-read-translator-${{ steps.version.version }}-firefox-mv2.zip" . -x ".*"
+          cd .output/firefox-mv2 && zip -r "../../quick-read-translator-${{ steps.version.outputs.version }}-firefox-mv2.zip" . -x ".*"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -55,5 +55,5 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            quick-read-translator-${{ steps.version.version }}-chrome-mv3.zip
-            quick-read-translator-${{ steps.version.version }}-firefox-mv2.zip
+            quick-read-translator-${{ steps.version.outputs.version }}-chrome-mv3.zip
+            quick-read-translator-${{ steps.version.outputs.version }}-firefox-mv2.zip
