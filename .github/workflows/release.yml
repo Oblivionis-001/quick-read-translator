@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit & integration tests
+        run: npm run test -- --run
+
+      - name: Read version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Build Chrome (MV3)
+        run: npm run build
+
+      - name: Build Firefox (MV2)
+        run: npm run build:firefox
+
+      - name: Package Chrome zip
+        run: |
+          cd .output/chrome-mv3 && zip -r "../../quick-read-translator-${{ steps.version.version }}-chrome-mv3.zip" . -x ".*"
+
+      - name: Package Firefox zip
+        run: |
+          cd .output/firefox-mv2 && zip -r "../../quick-read-translator-${{ steps.version.version }}-firefox-mv2.zip" . -x ".*"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            quick-read-translator-${{ steps.version.version }}-chrome-mv3.zip
+            quick-read-translator-${{ steps.version.version }}-firefox-mv2.zip

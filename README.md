@@ -129,4 +129,4 @@ npm run test -- tests/integration/glm-provider.test.ts
 
 ## License
 
-MIT（待添加 LICENSE 文件）
+[MIT](LICENSE)
