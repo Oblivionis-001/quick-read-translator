@@ -4,6 +4,10 @@ import {
   DEFAULT_HOTKEY,
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_TARGET_LANGUAGE,
+  SCHEMA_VERSION,
+  DEFAULT_SELECTOR_CONFIG,
+  DEFAULT_TRANSLATION_THEME,
+  DEFAULT_FLOATING_BALL_ENABLED,
 } from "@/shared/constants";
 
 export const DEFAULT_PROVIDER: ProviderConfig = {
@@ -64,6 +68,11 @@ export class ConfigService {
       hotkey: DEFAULT_HOTKEY,
       hoverButtonEnabled: true,
       selectionTriggerEnabled: true,
+      schemaVersion: SCHEMA_VERSION,
+      selectorConfig: DEFAULT_SELECTOR_CONFIG,
+      siteRules: [],
+      translationTheme: DEFAULT_TRANSLATION_THEME,
+      floatingBallEnabled: DEFAULT_FLOATING_BALL_ENABLED,
     };
   }
 }

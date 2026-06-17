@@ -7,6 +7,7 @@ import {
   validateImportedConfig,
 } from "@/interface-adapters/options/operations";
 import type { AppConfig, ProviderConfig } from "@/shared/types";
+import { DEFAULT_SELECTOR_CONFIG } from "@/shared/constants";
 
 function makeProvider(id: string, name: string = id): ProviderConfig {
   return {
@@ -32,6 +33,11 @@ function makeConfig(providers: ProviderConfig[]): AppConfig {
     hotkey: "Alt+T",
     hoverButtonEnabled: true,
     selectionTriggerEnabled: true,
+    schemaVersion: 2,
+    selectorConfig: DEFAULT_SELECTOR_CONFIG,
+    siteRules: [],
+    translationTheme: "inherit",
+    floatingBallEnabled: true,
   };
 }
 

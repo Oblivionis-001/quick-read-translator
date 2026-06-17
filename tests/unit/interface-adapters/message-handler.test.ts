@@ -6,6 +6,7 @@ import { TranslationResult } from "@/domain/entities/TranslationResult";
 import { ConfigRepository } from "@/domain/interfaces/ConfigRepository";
 import { TranslationCache } from "@/infrastructure/storage/TranslationCache";
 import { AppConfig, ProviderConfig } from "@/shared/types";
+import { DEFAULT_SELECTOR_CONFIG } from "@/shared/constants";
 
 /**
  * webextension-polyfill throws at module-evaluation time unless
@@ -97,6 +98,11 @@ describe("handleTranslateMessage", () => {
       hotkey: "Alt+T",
       hoverButtonEnabled: true,
       selectionTriggerEnabled: true,
+      schemaVersion: 2,
+      selectorConfig: DEFAULT_SELECTOR_CONFIG,
+      siteRules: [],
+      translationTheme: "inherit",
+      floatingBallEnabled: true,
     };
 
     const response = await handleTranslateMessage(
@@ -134,6 +140,11 @@ describe("handleTranslateMessage", () => {
       hotkey: "Alt+T",
       hoverButtonEnabled: true,
       selectionTriggerEnabled: true,
+      schemaVersion: 2,
+      selectorConfig: DEFAULT_SELECTOR_CONFIG,
+      siteRules: [],
+      translationTheme: "inherit",
+      floatingBallEnabled: true,
     };
 
     const response = await handleTranslateMessage(
