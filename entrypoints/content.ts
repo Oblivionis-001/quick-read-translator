@@ -9,10 +9,11 @@ import {
   selectBlocksForTranslation,
   type SendMessage,
 } from "@/interface-adapters/content/orchestrator";
-import { renderResults } from "@/interface-adapters/content/renderer-adapter";
+import { renderResults, setRendererTheme } from "@/interface-adapters/content/renderer-adapter";
 import { isTriggerTranslate } from "@/interface-adapters/content/message-router";
 import { ConfigService } from "@/application/ConfigService";
 import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
+import type { TranslationThemeId } from "@/shared/types";
 
 /**
  * Content script entry point.
@@ -74,15 +75,18 @@ export default defineContentScript({
     let hotkey = "Alt+T";
     let selectionTriggerEnabled = true;
     let hoverButtonEnabled = true;
+    let translationTheme: TranslationThemeId = 'inherit';
     try {
       const configService = new ConfigService(new BrowserStorageConfigRepo());
       const config = await configService.getConfig();
       hotkey = config.hotkey;
       selectionTriggerEnabled = config.selectionTriggerEnabled;
       hoverButtonEnabled = config.hoverButtonEnabled;
+      translationTheme = config.translationTheme;
     } catch (err) {
       console.error("[qrt] failed to load config; using defaults:", err);
     }
+    setRendererTheme(translationTheme);
 
     listenHotkey(hotkey, () => {
       void handleTrigger({});
