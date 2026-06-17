@@ -1,11 +1,12 @@
 import { TranslationResult } from "@/domain/entities/TranslationResult";
+import type { TranslationThemeId } from "@/shared/types";
+import { getTheme } from "@/domain/services/ThemeCatalog";
 
 /**
  * Renders {@link TranslationResult}s back into the page as inline bilingual
  * translations, and shows retry affordances for failed blocks. Re-rendering
  * a block does not duplicate output: when a translation sibling already
- * exists, its text is updated in place. Re-issuing renderError for a block
- * also updates the existing marker in place.
+ * exists, its text and theme are updated in place.
  */
 export class DOMRenderer {
   private readonly translatedClass = "qrt-translation";
@@ -13,21 +14,22 @@ export class DOMRenderer {
 
   constructor(private readonly doc: Document = globalThis.document) {}
 
-  render(results: TranslationResult[]): void {
+  render(results: TranslationResult[], theme: TranslationThemeId = 'inherit'): void {
     for (const result of results) {
       const original = this.findOriginalElement(result.blockId);
       if (!original) continue;
       const existing = original.nextElementSibling;
       if (existing?.classList.contains(this.translatedClass)) {
-        existing.textContent = result.translatedText;
+        const el = existing as HTMLElement;
+        el.textContent = result.translatedText;
+        this.applyTheme(el, original, theme);
         continue;
       }
 
       const translationEl = this.doc.createElement("div");
       translationEl.className = this.translatedClass;
       translationEl.textContent = result.translatedText;
-      translationEl.style.cssText =
-        "color: #928c86; margin-top: 0.25em; margin-bottom: 1em; font-size: 0.95em;";
+      this.applyTheme(translationEl, original, theme);
       original.after(translationEl);
     }
   }
@@ -47,7 +49,6 @@ export class DOMRenderer {
       errorEl = span;
     } else {
       const span = errorEl as HTMLSpanElement;
-      // Replace any previous retry listener so only the latest onRetry fires.
       const fresh = span.cloneNode(true) as HTMLSpanElement;
       fresh.addEventListener("click", onRetry);
       span.replaceWith(fresh);
@@ -55,6 +56,48 @@ export class DOMRenderer {
     }
 
     errorEl.setAttribute("title", message);
+  }
+
+  /**
+   * Apply the given theme to a translation element. Shared layout (block
+   * display, top/bottom margins separating the translation from the
+   * original) is always applied; theme-specific styling is layered on top.
+   *
+   * For `inherit`, we explicitly copy computed style from the original
+   * element. The translation is a sibling (not a child), so natural CSS
+   * cascade would inherit from the original's parent — which is rarely
+   * what the user wants. Explicit copy preserves the original's visual
+   * weight: an h1's translation is also h1-sized.
+   */
+  private applyTheme(
+    el: HTMLElement,
+    original: Element,
+    theme: TranslationThemeId
+  ): void {
+    // Reset to a known baseline so theme switches don't leave residual
+    // styles from the previous theme.
+    el.style.cssText = '';
+    el.style.display = 'block';
+    el.style.marginTop = '0.25em';
+    el.style.marginBottom = '0.5em';
+
+    if (theme === 'inherit') {
+      const win = this.doc.defaultView;
+      if (!win) return;
+      const cs = win.getComputedStyle(original);
+      el.style.color = cs.color;
+      el.style.fontSize = cs.fontSize;
+      el.style.fontFamily = cs.fontFamily;
+      el.style.fontWeight = cs.fontWeight;
+      el.style.lineHeight = cs.lineHeight;
+      el.style.letterSpacing = cs.letterSpacing;
+      el.style.textAlign = cs.textAlign;
+    } else {
+      const def = getTheme(theme);
+      if (def && def.cssText) {
+        el.style.cssText += def.cssText;
+      }
+    }
   }
 
   private findOriginalElement(blockId: string): Element | null {

@@ -37,7 +37,7 @@ describe("DOMRenderer", () => {
     const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
     const document = dom.window.document;
 
-    new DOMRenderer(document).render([makeResult("b1", "你好")]);
+    new DOMRenderer(document).render([makeResult("b1", "你好")], 'grey');
 
     const translated = document.querySelector(".qrt-translation") as HTMLElement;
     // jsdom normalizes #928c86 to rgb() on read-back; assert both forms for clarity.
