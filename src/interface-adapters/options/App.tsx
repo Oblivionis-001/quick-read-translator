@@ -14,6 +14,7 @@ import {
   updateProvider,
   validateImportedConfig,
 } from "@/interface-adapters/options/operations";
+import { AppearanceSection } from "./AppearanceSection";
 
 const configService = new ConfigService(new BrowserStorageConfigRepo());
 
@@ -176,6 +177,11 @@ export default function App() {
         config={config}
         onTargetLanguageChange={(v) => save({ ...config, targetLanguage: v })}
         onSourceLanguageChange={(v) => save({ ...config, sourceLanguage: v })}
+      />
+
+      <AppearanceSection
+        theme={config.translationTheme}
+        onThemeChange={(v) => save({ ...config, translationTheme: v })}
       />
 
       <LocalProxySection
