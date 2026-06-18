@@ -28,11 +28,12 @@ import { DEFAULT_SELECTOR_CONFIG } from "@/shared/constants";
  *
  * The trade-off: on the very first hover, the hovered element's
  * data-qrt-block-id attribute is not set yet (it is populated by
- * extraction). The hover-button trigger's mouseover handler resolves the
- * block id to null in that case, and selectBlocksForTranslation falls
- * back to "first block". Subsequent hovers see the freshly-tagged
- * attribute and resolve correctly. Auto-retranslation on DOM mutation
- * (without an explicit trigger) is intentionally out of MVP scope.
+ * extraction). The hover-button trigger therefore captures the hovered
+ * *element* (not its id) and passes it to handleTrigger. handleTrigger
+ * runs extraction first — tagging every matched element with
+ * data-qrt-block-id — and then resolves the hovered element's id from
+ * the freshly-set attribute. Auto-retranslation on DOM mutation (without
+ * an explicit trigger) is intentionally out of MVP scope.
  *
  * Trigger wiring honors the user's configured hotkey and the per-trigger
  * toggle flags (hotkey is always on; selection and hover-button are
@@ -55,21 +56,26 @@ export default defineContentScript({
 
     async function handleTrigger(opts: {
       selection?: string | null;
-      hoverBlockId?: string | null;
+      hoveredElement?: HTMLElement | null;
     }): Promise<void> {
       // Re-extract on every trigger so blocks reflect the current DOM.
-      // This also (re)tags elements with data-qrt-block-id, which
-      // subsequent hovers rely on.
+      // This also tags every matched element with data-qrt-block-id,
+      // which we read below to resolve the hovered element to its block.
       const blocks = extractor.extractFromElement(
         document.body,
         config?.selectorConfig ?? DEFAULT_SELECTOR_CONFIG,
         config?.siteRules ?? [],
         new URL(window.location.href)
       );
+      // Read the block id AFTER extraction has tagged the element. On the
+      // very first hover this attribute is empty before extraction;
+      // reading it post-extraction is what makes the first click resolve
+      // to the hovered block instead of falling through to "translate all".
+      const hoverBlockId = opts.hoveredElement?.dataset.qrtBlockId ?? null;
       const selected = selectBlocksForTranslation(
         blocks,
         opts.selection ?? null,
-        opts.hoverBlockId ?? null
+        hoverBlockId
       );
       const results = await translateBlocks(
         selected,
@@ -107,8 +113,8 @@ export default defineContentScript({
       });
     }
     if (hoverButtonEnabled) {
-      createHoverButton((blockId) => {
-        void handleTrigger({ hoverBlockId: blockId });
+      createHoverButton((hoveredElement) => {
+        void handleTrigger({ hoveredElement });
       });
     }
 

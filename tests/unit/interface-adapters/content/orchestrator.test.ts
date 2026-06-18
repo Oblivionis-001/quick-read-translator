@@ -32,12 +32,15 @@ describe("selectBlocksForTranslation", () => {
     expect(selected).toEqual([b]);
   });
 
-  it("falls through when hoverBlockId does not match any block", () => {
+  it("returns all blocks when hoverBlockId does not match any block", () => {
+    // Regression: previously this returned only the first block. But the
+    // callers that reach this path (hotkey, popup trigger, panel's
+    // "Translate Page" button) all mean "translate the whole page", so
+    // returning one block silently dropped everything else on the page.
     const a = makeBlock("Alpha");
     const b = makeBlock("Beta");
     const selected = selectBlocksForTranslation([a, b], null, "nonexistent");
-    // No hover match and no selection -> first block.
-    expect(selected).toEqual([a]);
+    expect(selected).toEqual([a, b]);
   });
 
   it("returns blocks whose sourceText contains the selection string", () => {
@@ -48,18 +51,22 @@ describe("selectBlocksForTranslation", () => {
     expect(selected).toEqual([a, c]);
   });
 
-  it("falls back to first block when selection matches nothing", () => {
+  it("returns all blocks when selection matches nothing", () => {
+    // Same regression as the hoverBlockId case: a no-match selection still
+    // means "translate the page", not "translate only the first block".
     const a = makeBlock("Alpha");
     const b = makeBlock("Beta");
     const selected = selectBlocksForTranslation([a, b], "nomatch", null);
-    expect(selected).toEqual([a]);
+    expect(selected).toEqual([a, b]);
   });
 
-  it("returns the first block when neither selection nor hoverBlockId is given", () => {
+  it("returns all blocks when neither selection nor hoverBlockId is given", () => {
+    // Hotkey, popup trigger, and panel "Translate Page" all reach this
+    // path. They mean full-page translate, so we return every block.
     const a = makeBlock("Alpha");
     const b = makeBlock("Beta");
     const selected = selectBlocksForTranslation([a, b], null, null);
-    expect(selected).toEqual([a]);
+    expect(selected).toEqual([a, b]);
   });
 
   it("returns an empty array when given no blocks", () => {

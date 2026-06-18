@@ -61,7 +61,9 @@ export type SendMessage = (message: unknown) => Promise<unknown>;
  *     just that single block. Hover is the most specific intent.
  *  2. Otherwise, if a non-empty selection is given, return every block
  *     whose sourceText contains the selection string.
- *  3. Otherwise (no hover, no selection), fall back to the first block.
+ *  3. Otherwise (no hover, no selection), translate every block. The
+ *     callers that reach this path — hotkey, popup trigger, panel
+ *     "Translate Page" — all mean full-page translation.
  *
  * Returns an empty array when the input list is empty.
  */
@@ -86,7 +88,7 @@ export function selectBlocksForTranslation(
     if (matched.length > 0) return matched;
   }
 
-  return blocks.slice(0, 1);
+  return blocks;
 }
 
 /**

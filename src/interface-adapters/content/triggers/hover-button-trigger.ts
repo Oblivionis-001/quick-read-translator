@@ -1,7 +1,12 @@
 /**
  * Hover button trigger: when the user hovers over a paragraph, heading, or
  * list item, show a small "译" (translate) button at its top-right. Clicking
- * the button fires `onActivate` with the hovered block's data-qrt-block-id.
+ * the button fires `onActivate` with the hovered element.
+ *
+ * The hovered element is passed (rather than its data-qrt-block-id) because
+ * extraction runs lazily — the data-qrt-block-id attribute is only set
+ * inside handleTrigger, which runs after this click fires. Passing the
+ * element lets the caller read the freshly-tagged id after extraction.
  *
  * Styling follows the spec (Section 12.6):
  *   - 主品牌绿 background (#00a071), 白色图标
@@ -25,7 +30,7 @@ export interface HoverButtonHandle {
 }
 
 export function createHoverButton(
-  onActivate: (blockId: string | null) => void
+  onActivate: (hoveredElement: HTMLElement | null) => void
 ): HoverButtonHandle {
   const button = document.createElement("button");
   button.textContent = "译";
@@ -50,10 +55,10 @@ export function createHoverButton(
     button.style.background = COLOR_PRIMARY;
   });
 
-  let currentBlockId: string | null = null;
+  let currentHovered: HTMLElement | null = null;
 
   button.addEventListener("click", () => {
-    onActivate(currentBlockId);
+    onActivate(currentHovered);
     button.style.display = "none";
   });
 
@@ -67,7 +72,7 @@ export function createHoverButton(
     button.style.left = `${rect.right - 30}px`;
     button.style.top = `${rect.top}px`;
     button.style.display = "block";
-    currentBlockId = target.dataset.qrtBlockId ?? null;
+    currentHovered = target;
   };
   document.addEventListener("mouseover", mouseOverHandler);
 
