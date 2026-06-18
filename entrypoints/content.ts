@@ -13,7 +13,7 @@ import { renderResults, setRendererTheme } from "@/interface-adapters/content/re
 import { isTriggerTranslate } from "@/interface-adapters/content/message-router";
 import { ConfigService } from "@/application/ConfigService";
 import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
-import type { TranslationThemeId } from "@/shared/types";
+import type { AppConfig } from "@/shared/types";
 import { DEFAULT_SELECTOR_CONFIG } from "@/shared/constants";
 
 /**
@@ -61,9 +61,9 @@ export default defineContentScript({
       // subsequent hovers rely on.
       const blocks = extractor.extractFromElement(
         document.body,
-        DEFAULT_SELECTOR_CONFIG,
-        [],
-        new URL(location.href)
+        config?.selectorConfig ?? DEFAULT_SELECTOR_CONFIG,
+        config?.siteRules ?? [],
+        new URL(window.location.href)
       );
       const selected = selectBlocksForTranslation(
         blocks,
@@ -78,20 +78,18 @@ export default defineContentScript({
     // The hotkey is always registered; selection and hover-button are gated
     // by their respective flags. Fall back to defaults if config load fails
     // so the extension remains usable when storage is unavailable.
-    let hotkey = "Alt+T";
-    let selectionTriggerEnabled = true;
-    let hoverButtonEnabled = true;
-    let translationTheme: TranslationThemeId = 'inherit';
+    let config: AppConfig | null = null;
     try {
       const configService = new ConfigService(new BrowserStorageConfigRepo());
-      const config = await configService.getConfig();
-      hotkey = config.hotkey;
-      selectionTriggerEnabled = config.selectionTriggerEnabled;
-      hoverButtonEnabled = config.hoverButtonEnabled;
-      translationTheme = config.translationTheme;
+      config = await configService.getConfig();
     } catch (err) {
       console.error("[qrt] failed to load config; using defaults:", err);
     }
+
+    const hotkey = config?.hotkey ?? 'Alt+T';
+    const selectionTriggerEnabled = config?.selectionTriggerEnabled ?? true;
+    const hoverButtonEnabled = config?.hoverButtonEnabled ?? true;
+    const translationTheme = config?.translationTheme ?? 'inherit';
     setRendererTheme(translationTheme);
 
     listenHotkey(hotkey, () => {
