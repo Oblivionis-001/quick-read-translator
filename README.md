@@ -8,14 +8,17 @@
 
 immersive-translate 逐渐闭源，社区需要一个能自己掌控的替代品。这个项目做最核心的事：
 
-- 三种触发方式（快捷键、划词、悬浮按钮）翻译网页段落
+- 四种触发方式（快捷键、划词、悬浮按钮、浮动球）翻译网页段落
 - 双语内联呈现（原文下方紧跟译文）
 - OpenAI 兼容 API，开箱支持 [智谱 GLM-4-Flash-250414](https://open.bigmodel.cn/) 免费端点
 - 翻译结果按文本哈希缓存，自动重试 + 优雅降级
 
 ## 功能
 
-- **三种触发器**：`Alt+T` 快捷键、文本选中、段落旁悬浮「译」按钮
+- **四种触发器**：`Alt+T` 快捷键、文本选中、段落旁悬浮「译」按钮、屏幕贴边浮动球 + 配置面板
+- **翻译主题**：继承原文样式 / Sequoia Grey / 虚线下划线 / 斜体 / 加粗，Options 里一键切换
+- **Provider 连通性测试**：Options 卡片上点「Test connection」，真实跑一次最小翻译并显示延迟与结果
+- **可配置选择器 + per-site 规则**：内置默认段落选择器，可在 Options 编辑；针对特定网站用 glob 模式（`*://news.ycombinator.com/*`）覆盖增删选择器
 - **API 接入**：OpenAI 兼容协议，可配置任意 baseUrl / model / prompt / temperature / maxTokens
 - **批量合并**：相邻小段落合并为一次请求，超出 token 上限自动拆分
 - **缓存**：SHA-256 文本哈希 + 30 天 TTL，相同段落不重复请求
@@ -74,9 +77,10 @@ npm run build:firefox  # Firefox MV2 → .output/firefox-mv2/
 | 快捷键 | `Alt+T`（翻译第一个段落；若先选中文本则翻译所有匹配段落） |
 | 划词 | 选中一段文本，鼠标抬起时翻译匹配段落 |
 | 悬浮按钮 | 鼠标悬停在 `<p>`/`<h1-6>`/`<li>` 上时显示「译」按钮，点击翻译该段 |
+| 浮动球 | 屏幕右下角绿色「译」球，点击展开面板（含 provider / 主题 / 目标语言 / 「Translate This Page」按钮），拖动可贴边停靠 |
 | Popup | 点击扩展图标，点「Translate This Page」 |
 
-译文以 Sequoia Grey `#928c86` 显示在原文下方。失败的段落会显示 ⚠️ 图标，hover 看错误信息，点击重试。
+译文按所选主题渲染在原文下方（默认 Sequoia Grey `#928c86`）。失败的段落会显示 ⚠️ 图标，hover 看错误信息，点击重试。
 
 ## 开发
 
@@ -125,7 +129,9 @@ npm run test -- tests/integration/glm-provider.test.ts
 ## 设计与计划
 
 - [设计 spec](docs/superpowers/specs/2026-06-13-immersive-translation-extension-design.md)
+- [v0.2 设计 spec](docs/superpowers/specs/2026-06-18-selector-theme-provider-ball-design.md)
 - [实施计划](docs/superpowers/plans/2026-06-13-immersive-translation-extension-plan.md)
+- [v0.2 实施计划](docs/superpowers/plans/2026-06-18-selector-theme-provider-ball-plan.md)
 
 ## License
 
