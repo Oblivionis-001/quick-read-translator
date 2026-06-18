@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sequoia-green: #247e5a;
+  --color-sequoia-dark-green: #1a5e44;
+  --color-sequoia-grey: #928c86;
+  --color-sequoia-red: #c0392b;
+  --color-sequoia-button: #406a8a;
+}
