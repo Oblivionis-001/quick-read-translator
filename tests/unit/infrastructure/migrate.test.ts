@@ -59,4 +59,14 @@ describe('migrateConfig', () => {
     expect(migrated.translationTheme).toBe('bold');
     expect(migrated.floatingBallEnabled).toBe(false);
   });
+
+  it('defaults currentProviderId to the first provider when missing', () => {
+    // A v1 payload that omitted currentProviderId would otherwise migrate
+    // to '' — which then fails validateImportedConfig on subsequent import.
+    const v1 = {
+      providers: [{ id: 'glm', name: 'GLM', baseUrl: 'x', apiKey: '', model: 'm', temperature: 0, maxTokens: 0, systemPrompt: '', userPromptTemplate: '', enabled: true }],
+    };
+    const migrated = migrateConfig(v1);
+    expect(migrated.currentProviderId).toBe('glm');
+  });
 });

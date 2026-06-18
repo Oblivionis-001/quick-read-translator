@@ -71,7 +71,11 @@ export default defineContentScript({
         opts.selection ?? null,
         opts.hoverBlockId ?? null
       );
-      const results = await translateBlocks(selected, "zh-CN", sendMessage);
+      const results = await translateBlocks(
+        selected,
+        config?.targetLanguage ?? "zh-CN",
+        sendMessage
+      );
       renderResults(results);
     }
 
@@ -130,6 +134,17 @@ export default defineContentScript({
     // `qrt:translate-page` on window (same JS context as content script).
     window.addEventListener('qrt:translate-page', () => {
       void handleTrigger({});
+    });
+
+    // React to config changes made from the floating panel or Options UI
+    // in another view of this tab (or another tab). Without this, theme /
+    // provider / hover-toggle changes from those surfaces only take effect
+    // on next page load. We re-pull the entire config so `handleTrigger`
+    // (which closes over `config`) sees fresh values on the next invocation.
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local' || !changes.appConfig?.newValue) return;
+      config = changes.appConfig.newValue as AppConfig;
+      setRendererTheme(config.translationTheme ?? 'inherit');
     });
   },
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfigService } from "@/application/ConfigService";
 import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
+import { migrateConfig } from "@/infrastructure/repositories/migrate";
 import { browser } from "wxt/browser";
 import type { AppConfig, ProviderConfig } from "@/shared/types";
 import {
@@ -113,7 +114,12 @@ export default function App() {
           alert("Invalid config file: missing required fields.");
           return;
         }
-        await browser.storage.local.set({ appConfig: parsed });
+        // Run the imported payload through migrateConfig before persisting.
+        // validateImportedConfig only checks providers + currentProviderId,
+        // so a v1-style or partial import would otherwise land in storage
+        // missing the v2 fields. Migration fills those in with defaults.
+        const migrated = migrateConfig(parsed);
+        await browser.storage.local.set({ appConfig: migrated });
         // ConfigService caches the prior config; drop the cache so the next
         // getConfig() reloads from storage.
         configService.clearCache();

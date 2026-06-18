@@ -94,4 +94,20 @@ describe('DOMBlockExtractor layered selectors', () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].sourceText).toBe('long enough');
   });
+
+  it('skips malformed selectors instead of aborting the whole pass', () => {
+    // User-supplied selectors can be malformed (typos, partial pseudos).
+    // querySelectorAll would throw and abort extraction for the entire page;
+    // we want to skip just the bad entries and continue.
+    const root = doc.getElementById('root')!;
+    root.innerHTML = '<p>keep</p>';
+    const extractor = new DOMBlockExtractor();
+    const blocks = extractor.extractFromElement(
+      root,
+      makeConfig({ extraBlockSelectors: [':invalidpseudo', 'a['] }),
+      [],
+      new URL('https://x.com/')
+    );
+    expect(blocks.map((b) => b.sourceText)).toEqual(['keep']);
+  });
 });

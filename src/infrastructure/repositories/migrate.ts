@@ -29,7 +29,7 @@ export function migrateConfig(raw: unknown): AppConfig {
   return {
     targetLanguage: r.targetLanguage ?? 'zh-CN',
     sourceLanguage: r.sourceLanguage ?? 'auto',
-    currentProviderId: r.currentProviderId ?? '',
+    currentProviderId: r.currentProviderId ?? r.providers?.[0]?.id ?? '',
     providers: r.providers ?? [],
     hotkey: r.hotkey ?? 'Alt+T',
     hoverButtonEnabled: r.hoverButtonEnabled ?? true,

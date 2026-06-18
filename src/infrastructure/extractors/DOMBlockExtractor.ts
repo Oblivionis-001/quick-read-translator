@@ -26,7 +26,14 @@ export class DOMBlockExtractor {
   ): ParagraphBlock[] {
     const config = mergeSiteRules(baseConfig, siteRules, url);
 
-    const allSelector = [...config.selectors, ...config.extraBlockSelectors].join(", ");
+    // Filter out malformed selectors before joining — one bad entry would
+    // otherwise make querySelectorAll throw and abort extraction for the
+    // whole page.
+    const validSelectors = [
+      ...config.selectors,
+      ...config.extraBlockSelectors,
+    ].filter((sel) => this.isQueryableSelector(sel));
+    const allSelector = validSelectors.join(", ");
     if (!allSelector) return [];
 
     const candidates = Array.from(root.querySelectorAll(allSelector));
@@ -75,6 +82,19 @@ export class DOMBlockExtractor {
       return false;
     }
   }
+
+  private isQueryableSelector(sel: string): boolean {
+    try {
+      // `selector` is a live Selector API; compile-throw on invalid input
+      // without touching the DOM. Cheaper than throwing on querySelectorAll
+      // against a real subtree.
+      void this.dummyRoot.matches(sel);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  private readonly dummyRoot: Element = document.createElement('div');
 
   private dedupeByAncestor(els: Element[]): Element[] {
     const set = new Set(els);

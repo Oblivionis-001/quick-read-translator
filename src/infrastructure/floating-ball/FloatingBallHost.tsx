@@ -135,16 +135,26 @@ export class FloatingBallHost {
     });
 
     ball.addEventListener('pointermove', (e) => {
-      if (this.dragState.kind !== 'dragging') return;
+      if (this.dragState.kind !== 'dragging' || !this.ballEl) return;
+      const prev = { x: this.dragState.currentX, y: this.dragState.currentY };
+      // Ball top-left tracks pointer minus half the ball size so the cursor
+      // stays roughly centered on it during the drag.
+      const ballX = e.clientX - 20;
+      const ballY = e.clientY - 20;
+      const delta = { dx: ballX - (prev.x - 20), dy: ballY - (prev.y - 20) };
       this.dragState.currentX = e.clientX;
       this.dragState.currentY = e.clientY;
-      // Apply live drag (visual feedback only; commit on release)
-      if (this.ballEl) {
-        this.ballEl.style.left = `${e.clientX - 20}px`;
-        this.ballEl.style.top = `${e.clientY - 20}px`;
-        this.ballEl.style.right = 'auto';
-        this.ballEl.style.bottom = 'auto';
-      }
+      // Route through the controller so the live drag is clamped to the
+      // viewport (prevents losing the ball off-screen mid-drag).
+      const next = this.controller.onDrag(
+        { x: ballX, y: ballY },
+        delta,
+        { w: window.innerWidth, h: window.innerHeight }
+      );
+      this.ballEl.style.left = `${next.x}px`;
+      this.ballEl.style.top = `${next.y}px`;
+      this.ballEl.style.right = 'auto';
+      this.ballEl.style.bottom = 'auto';
     });
 
     ball.addEventListener('pointerup', async (e) => {
