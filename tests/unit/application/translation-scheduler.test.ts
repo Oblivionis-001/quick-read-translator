@@ -192,4 +192,159 @@ describe("TranslationScheduler", () => {
     expect(error).toBeInstanceOf(NetworkError);
     expect(provider.translate).toHaveBeenCalledTimes(3);
   });
+
+  describe("onProgress callback", () => {
+    it("fires once with state='translating' on a successful first attempt", async () => {
+      const provider = new FakeProvider();
+      const request = makeRequest("Hello", ["id1"]);
+      provider.translate.mockResolvedValue([makeResult("id1", "你好")]);
+
+      const scheduler = new TranslationScheduler(provider, { maxRetries: 2 });
+      const onProgress = vi.fn();
+
+      await scheduler.schedule([request], onProgress);
+
+      expect(onProgress).toHaveBeenCalledTimes(1);
+      expect(onProgress).toHaveBeenCalledWith({
+        blockIds: ["id1"],
+        state: "translating",
+        attempt: 0,
+        maxRetries: 2,
+      });
+    });
+
+    it("fires 'translating' then 'retrying' on each retry attempt", async () => {
+      const provider = new FakeProvider();
+      const request = makeRequest("Hello", ["id1", "id2"]);
+
+      // Attempt 0 fails, attempt 1 (first retry) fails, attempt 2 succeeds.
+      provider.translate
+        .mockRejectedValueOnce(new NetworkError("boom-0"))
+        .mockRejectedValueOnce(new NetworkError("boom-1"))
+        .mockResolvedValueOnce([
+          makeResult("id1", "你好"),
+          makeResult("id2", "世界"),
+        ]);
+
+      const scheduler = new TranslationScheduler(provider, {
+        baseDelayMs: 10,
+        maxRetries: 2,
+      });
+      const onProgress = vi.fn();
+
+      const promise = scheduler.schedule([request], onProgress);
+      await vi.advanceTimersByTimeAsync(10);
+      await vi.advanceTimersByTimeAsync(20);
+      await promise;
+
+      expect(onProgress).toHaveBeenCalledTimes(3);
+      // Initial attempt.
+      expect(onProgress).toHaveBeenNthCalledWith(1, {
+        blockIds: ["id1", "id2"],
+        state: "translating",
+        attempt: 0,
+        maxRetries: 2,
+      });
+      // First retry.
+      expect(onProgress).toHaveBeenNthCalledWith(2, {
+        blockIds: ["id1", "id2"],
+        state: "retrying",
+        attempt: 1,
+        maxRetries: 2,
+      });
+      // Second retry.
+      expect(onProgress).toHaveBeenNthCalledWith(3, {
+        blockIds: ["id1", "id2"],
+        state: "retrying",
+        attempt: 2,
+        maxRetries: 2,
+      });
+    });
+
+    it("does not fire onProgress after the final failed attempt", async () => {
+      const provider = new FakeProvider();
+      const request = makeRequest("Hello", ["id1"]);
+      provider.translate.mockImplementation(async () => {
+        throw new NetworkError("always");
+      });
+
+      const scheduler = new TranslationScheduler(provider, {
+        baseDelayMs: 10,
+        maxRetries: 2,
+      });
+      const onProgress = vi.fn();
+
+      const promise = scheduler.schedule([request], onProgress).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(10);
+      await vi.advanceTimersByTimeAsync(20);
+      await promise;
+
+      // 1 initial + 2 retries = 3 events. No "final failure" event.
+      expect(onProgress).toHaveBeenCalledTimes(3);
+      const states = onProgress.mock.calls.map((c) => c[0]?.state);
+      expect(states).toEqual(["translating", "retrying", "retrying"]);
+    });
+
+    it("does not fire onProgress for non-retryable errors", async () => {
+      const provider = new FakeProvider();
+      const request = makeRequest("Hello", ["id1"]);
+      provider.translate.mockImplementationOnce(async () => {
+        throw new AuthError("bad key");
+      });
+
+      const scheduler = new TranslationScheduler(provider, { maxRetries: 3 });
+      const onProgress = vi.fn();
+
+      await expect(scheduler.schedule([request], onProgress)).rejects.toBeInstanceOf(AuthError);
+
+      // Only the initial 'translating' fires; no retry events because the
+      // error is non-retryable.
+      expect(onProgress).toHaveBeenCalledTimes(1);
+      expect(onProgress).toHaveBeenCalledWith({
+        blockIds: ["id1"],
+        state: "translating",
+        attempt: 0,
+        maxRetries: 3,
+      });
+    });
+
+    it("fires onProgress for each request independently in a multi-request batch", async () => {
+      const provider = new FakeProvider();
+      const r1 = makeRequest("Hello", ["a"]);
+      const r2 = makeRequest("World", ["b"]);
+      provider.translate
+        .mockResolvedValueOnce([makeResult("a", "你好")])
+        .mockResolvedValueOnce([makeResult("b", "世界")]);
+
+      const scheduler = new TranslationScheduler(provider, { maxRetries: 2 });
+      const onProgress = vi.fn();
+
+      await scheduler.schedule([r1, r2], onProgress);
+
+      expect(onProgress).toHaveBeenCalledTimes(2);
+      expect(onProgress).toHaveBeenNthCalledWith(1, {
+        blockIds: ["a"],
+        state: "translating",
+        attempt: 0,
+        maxRetries: 2,
+      });
+      expect(onProgress).toHaveBeenNthCalledWith(2, {
+        blockIds: ["b"],
+        state: "translating",
+        attempt: 0,
+        maxRetries: 2,
+      });
+    });
+
+    it("does not throw when onProgress is omitted", async () => {
+      const provider = new FakeProvider();
+      const request = makeRequest("Hello", ["id1"]);
+      provider.translate.mockResolvedValue([makeResult("id1", "你好")]);
+
+      const scheduler = new TranslationScheduler(provider);
+      await expect(scheduler.schedule([request])).resolves.toEqual([
+        makeResult("id1", "你好"),
+      ]);
+    });
+  });
 });

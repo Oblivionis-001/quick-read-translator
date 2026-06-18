@@ -12,6 +12,11 @@ export const DEFAULT_SELECTOR_CONFIG: SelectorConfig = {
   selectors: [
     'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li',
     'blockquote', 'figcaption', 'summary', 'dd', 'dt',
+    // Hyperlinks: text-only <a> tags (cards, nav items, "Read more" links).
+    // <a> tags nested inside a translated ancestor (<p>, <li>) are filtered
+    // out by the extractor's ancestor-dedup, so this only catches standalone
+    // link blocks (e.g. card grids where each card is a single <a>).
+    'a',
   ],
   excludeSelectors: [],
   excludeTags: [],

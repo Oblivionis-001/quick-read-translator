@@ -14,6 +14,29 @@ const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_BASE_DELAY_MS = 1000;
 
 /**
+ * Progress event fired by {@link TranslationScheduler.schedule} as each
+ * attempt begins. UI layers use this to surface loading/retrying state
+ * next to the affected blocks.
+ *
+ *  - `state: 'translating'` is fired exactly once per request, at the
+ *    start of the initial (attempt 0) call to the provider.
+ *  - `state: 'retrying'` is fired at the start of each subsequent retry
+ *    (attempt 1, 2, ..., maxRetries).
+ *
+ * No event is fired after the final attempt resolves or rejects — the
+ * terminal state is conveyed by the schedule()'s returned promise.
+ */
+export interface ScheduleProgressEvent {
+  readonly blockIds: readonly string[];
+  readonly state: "translating" | "retrying";
+  /** 0-based attempt index. 0 is the initial attempt. */
+  readonly attempt: number;
+  readonly maxRetries: number;
+}
+
+export type ScheduleProgressCallback = (event: ScheduleProgressEvent) => void;
+
+/**
  * Coordinates translation of multiple {@link TranslationRequest}s through a
  * single {@link TranslationProvider}, applying retry-with-backoff to each
  * request independently.
@@ -37,12 +60,19 @@ export class TranslationScheduler {
    * Translate each request in order, collecting all results. Retries are
    * applied per-request; a non-retryable error thrown by one request
    * short-circuits the whole batch.
+   *
+   * If `onProgress` is provided, it is fired at the start of the initial
+   * attempt and at the start of each retry for each request, so callers
+   * (e.g. UI layers) can render per-block loading/retrying indicators.
    */
-  async schedule(requests: TranslationRequest[]): Promise<TranslationResult[]> {
+  async schedule(
+    requests: TranslationRequest[],
+    onProgress?: ScheduleProgressCallback
+  ): Promise<TranslationResult[]> {
     const results: TranslationResult[] = [];
 
     for (const request of requests) {
-      const requestResults = await this.translateWithRetry(request);
+      const requestResults = await this.translateWithRetry(request, onProgress);
       results.push(...requestResults);
     }
 
@@ -50,11 +80,19 @@ export class TranslationScheduler {
   }
 
   private async translateWithRetry(
-    request: TranslationRequest
+    request: TranslationRequest,
+    onProgress?: ScheduleProgressCallback
   ): Promise<TranslationResult[]> {
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      onProgress?.({
+        blockIds: request.blockIds,
+        state: attempt === 0 ? "translating" : "retrying",
+        attempt,
+        maxRetries: this.maxRetries,
+      });
+
       try {
         return await this.provider.translate([request]);
       } catch (error) {

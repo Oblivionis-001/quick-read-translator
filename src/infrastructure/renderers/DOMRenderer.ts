@@ -2,15 +2,49 @@ import { TranslationResult } from "@/domain/entities/TranslationResult";
 import type { TranslationThemeId } from "@/shared/types";
 import { getTheme } from "@/domain/services/ThemeCatalog";
 
+/** Visual state of a per-block loading indicator. */
+export type LoadingState = "translating" | "retrying";
+
+/** Stylesheet injected once per document so loading spinners animate. */
+const LOADING_STYLE_ID = "qrt-loading-style";
+const LOADING_STYLE_TEXT = `
+@keyframes qrt-spin { to { transform: rotate(360deg); } }
+.qrt-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.25em;
+  margin-bottom: 0.5em;
+  font-size: 0.85em;
+  color: #6b7280;
+}
+.qrt-loading-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #d1d5db;
+  border-top-color: #00a071;
+  border-radius: 50%;
+  animation: qrt-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+`;
+
 /**
  * Renders {@link TranslationResult}s back into the page as inline bilingual
  * translations, and shows retry affordances for failed blocks. Re-rendering
  * a block does not duplicate output: when a translation sibling already
  * exists, its text and theme are updated in place.
+ *
+ * Per-block loading indicators ({@link renderLoading}) are inserted
+ * alongside the original during translation / retry, and are cleared
+ * automatically by {@link render} and {@link renderError} when the
+ * terminal state for that block arrives.
  */
 export class DOMRenderer {
   private readonly translatedClass = "qrt-translation";
   private readonly errorClass = "qrt-error";
+  private readonly loadingClass = "qrt-loading";
 
   constructor(private readonly doc: Document = globalThis.document) {}
 
@@ -18,6 +52,7 @@ export class DOMRenderer {
     for (const result of results) {
       const original = this.findOriginalElement(result.blockId);
       if (!original) continue;
+      this.clearLoading(original);
       const existing = original.nextElementSibling;
       if (existing?.classList.contains(this.translatedClass)) {
         const el = existing as HTMLElement;
@@ -37,6 +72,7 @@ export class DOMRenderer {
   renderError(blockId: string, message: string, onRetry: () => void): void {
     const original = this.findOriginalElement(blockId);
     if (!original) return;
+    this.clearLoading(original);
 
     let errorEl = original.nextElementSibling;
     if (!errorEl || !errorEl.classList.contains(this.errorClass)) {
@@ -56,6 +92,78 @@ export class DOMRenderer {
     }
 
     errorEl.setAttribute("title", message);
+  }
+
+  /**
+   * Show (or update) a per-block loading indicator for each block id in
+   * `blockIds`. State transitions re-use the existing indicator if one is
+   * already present so the spinner doesn't flicker between attempts.
+   *
+   * `state='translating'` is the initial fetch (attempt 0); show a generic
+   * "翻译中" label. `state='retrying'` is a backoff retry and surfaces
+   * which retry is in flight (attempt/maxRetries).
+   */
+  renderLoading(
+    blockIds: Iterable<string>,
+    state: LoadingState,
+    attempt: number,
+    maxRetries: number
+  ): void {
+    this.ensureLoadingStyle();
+    for (const blockId of blockIds) {
+      const original = this.findOriginalElement(blockId);
+      if (!original) continue;
+
+      let loading = original.nextElementSibling;
+      if (!loading || !loading.classList.contains(this.loadingClass)) {
+        loading = this.createLoadingElement();
+        original.after(loading);
+      }
+      const textEl = loading.querySelector(".qrt-loading-text");
+      if (textEl) {
+        textEl.textContent =
+          state === "retrying"
+            ? `重试中 (${attempt}/${maxRetries})…`
+            : "翻译中…";
+      }
+    }
+  }
+
+  private createLoadingElement(): HTMLElement {
+    const wrapper = this.doc.createElement("div");
+    wrapper.className = this.loadingClass;
+    const spinner = this.doc.createElement("span");
+    spinner.className = "qrt-loading-spinner";
+    const text = this.doc.createElement("span");
+    text.className = "qrt-loading-text";
+    wrapper.appendChild(spinner);
+    wrapper.appendChild(text);
+    return wrapper;
+  }
+
+  /**
+   * Remove the loading indicator immediately following `original`, if any.
+   * Called from {@link render} and {@link renderError} so the spinner
+   * disappears the moment the terminal state arrives.
+   */
+  private clearLoading(original: Element): void {
+    const next = original.nextElementSibling;
+    if (next?.classList.contains(this.loadingClass)) {
+      next.remove();
+    }
+  }
+
+  /**
+   * Inject the loading stylesheet once per document. Idempotent: a
+   * pre-existing `<style data-qrt-loading-style>` short-circuits the
+   * injection.
+   */
+  private ensureLoadingStyle(): void {
+    if (this.doc.querySelector(`style[data-qrt-loading-style]`)) return;
+    const style = this.doc.createElement("style");
+    style.setAttribute("data-qrt-loading-style", "");
+    style.textContent = LOADING_STYLE_TEXT;
+    this.doc.head.appendChild(style);
   }
 
   /**

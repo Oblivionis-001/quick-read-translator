@@ -2,6 +2,7 @@ import { ParagraphBlock } from "@/domain/entities/ParagraphBlock";
 import { TranslationRequest } from "@/domain/entities/TranslationRequest";
 import { TranslationResult } from "@/domain/entities/TranslationResult";
 import { HashCache } from "@/domain/services/HashCache";
+import type { ScheduleProgressCallback } from "@/application/TranslationScheduler";
 import type { CacheEntry } from "@/shared/types";
 
 /**
@@ -13,7 +14,10 @@ import type { CacheEntry } from "@/shared/types";
 
 /** Scheduler: accepts merged requests, returns their translated results. */
 export interface TranslatePageScheduler {
-  schedule(requests: TranslationRequest[]): Promise<TranslationResult[]>;
+  schedule(
+    requests: TranslationRequest[],
+    onProgress?: ScheduleProgressCallback
+  ): Promise<TranslationResult[]>;
 }
 
 /** Merger: groups small blocks into fewer provider requests. */
@@ -76,7 +80,8 @@ export class TranslatePageUseCase {
 
   async execute(
     blocks: ParagraphBlock[],
-    targetLanguage: string
+    targetLanguage: string,
+    onProgress?: ScheduleProgressCallback
   ): Promise<TranslationResult[]> {
     const uncachedBlocks: ParagraphBlock[] = [];
     const cachedResults: TranslationResult[] = [];
@@ -112,7 +117,7 @@ export class TranslatePageUseCase {
     }
 
     const requests = this.deps.merger.merge(uncachedBlocks, targetLanguage);
-    const translated = await this.deps.scheduler.schedule(requests);
+    const translated = await this.deps.scheduler.schedule(requests, onProgress);
 
     for (const result of translated) {
       const block = uncachedBlocks.find((b) => b.id === result.blockId);

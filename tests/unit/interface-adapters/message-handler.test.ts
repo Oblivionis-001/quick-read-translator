@@ -174,4 +174,66 @@ describe("handleTranslateMessage", () => {
     expect(response.errors).toHaveLength(1);
     expect(response.errors![0].message).toMatch(/No provider configured/);
   });
+
+  it("forwards onProgress callback to the use case (surfaced as a 'translating' event)", async () => {
+    const providerConfig: ProviderConfig = {
+      id: "stub-provider",
+      name: "Stub",
+      baseUrl: "https://example.test",
+      apiKey: "key",
+      model: "stub-model",
+      temperature: 0,
+      maxTokens: 256,
+      systemPrompt: "",
+      userPromptTemplate: "{{text}}",
+      enabled: true,
+    };
+    const config: AppConfig = {
+      targetLanguage: "zh-CN",
+      sourceLanguage: "auto",
+      currentProviderId: "stub-provider",
+      providers: [providerConfig],
+      hotkey: "Alt+T",
+      hoverButtonEnabled: true,
+      selectionTriggerEnabled: true,
+      schemaVersion: 2,
+      selectorConfig: DEFAULT_SELECTOR_CONFIG,
+      siteRules: [],
+      translationTheme: "inherit",
+      floatingBallEnabled: true,
+    };
+
+    const onProgress = vi.fn();
+    const response = await handleTranslateMessage(
+      {
+        type: "TRANSLATE_BLOCKS",
+        targetLanguage: "zh-CN",
+        blocks: [
+          {
+            id: "b1",
+            sourceText: "Hello",
+            sourceLanguage: "auto",
+          },
+        ],
+      },
+      {
+        configRepo: new StubConfigRepo(config),
+        cache: new TranslationCache(),
+        providerFactory: (cfg) => new StubProvider(cfg.model),
+      },
+      onProgress
+    );
+
+    expect(response.ok).toBe(true);
+    // The StubProvider succeeds on the first attempt, so onProgress should
+    // fire exactly once with state='translating'. The blockIds come from the
+    // ParagraphBlock created inside the handler (its id is derived from the
+    // source text via sha256, not from the message's "id" field).
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    const event = onProgress.mock.calls[0][0];
+    expect(event.state).toBe("translating");
+    expect(event.attempt).toBe(0);
+    expect(Array.isArray(event.blockIds)).toBe(true);
+    expect(event.blockIds.length).toBeGreaterThan(0);
+  });
 });

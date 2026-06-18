@@ -1,6 +1,7 @@
 import { ConfigService } from "@/application/ConfigService";
 import { TranslatePageUseCase } from "@/application/TranslatePageUseCase";
 import { TranslationScheduler } from "@/application/TranslationScheduler";
+import type { ScheduleProgressCallback } from "@/application/TranslationScheduler";
 import { BlockMerger } from "@/domain/services/BlockMerger";
 import { ParagraphBlock } from "@/domain/entities/ParagraphBlock";
 import { TranslationResult } from "@/domain/entities/TranslationResult";
@@ -95,7 +96,8 @@ export function defaultMessageHandlerDeps(): MessageHandlerDeps {
  */
 export async function handleTranslateMessage(
   message: TranslateMessage,
-  deps: MessageHandlerDeps = defaultMessageHandlerDeps()
+  deps: MessageHandlerDeps = defaultMessageHandlerDeps(),
+  onProgress?: ScheduleProgressCallback
 ): Promise<TranslateResponse> {
   const blocks = message.blocks.map(
     (b) =>
@@ -133,7 +135,8 @@ export async function handleTranslateMessage(
 
     const results: TranslationResult[] = await useCase.execute(
       blocks,
-      message.targetLanguage
+      message.targetLanguage,
+      onProgress
     );
 
     return {

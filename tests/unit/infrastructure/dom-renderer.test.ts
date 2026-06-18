@@ -141,4 +141,110 @@ describe("DOMRenderer", () => {
     // Latest error message wins on a re-setup pass.
     expect(spans[0].getAttribute("title")).toBe("second failure");
   });
+
+  describe("renderLoading", () => {
+    it("injects a loading indicator next to the block when state='translating'", () => {
+      const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
+      const document = dom.window.document;
+
+      new DOMRenderer(document).renderLoading(["b1"], "translating", 0, 2);
+
+      const loading = document.querySelector(".qrt-loading");
+      expect(loading).not.toBeNull();
+      // The indicator sits immediately after the original.
+      const original = document.querySelector('[data-qrt-block-id="b1"]');
+      expect(original?.nextElementSibling).toBe(loading);
+      // Translating state shows generic "translating" text (not a retry count).
+      expect(loading?.textContent).toContain("翻译");
+    });
+
+    it("shows attempt/maxRetries count when state='retrying'", () => {
+      const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
+      const document = dom.window.document;
+
+      new DOMRenderer(document).renderLoading(["b1"], "retrying", 1, 2);
+
+      const loading = document.querySelector(".qrt-loading");
+      expect(loading?.textContent).toContain("重试");
+      // Attempt 1 of maxRetries 2 — surfaces which retry is in flight.
+      expect(loading?.textContent).toMatch(/1/);
+      expect(loading?.textContent).toMatch(/2/);
+    });
+
+    it("is idempotent (re-render updates text in place, no stacking)", () => {
+      const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
+      const document = dom.window.document;
+      const renderer = new DOMRenderer(document);
+
+      renderer.renderLoading(["b1"], "translating", 0, 2);
+      renderer.renderLoading(["b1"], "retrying", 1, 2);
+
+      expect(document.querySelectorAll(".qrt-loading")).toHaveLength(1);
+      expect(document.querySelector(".qrt-loading")?.textContent).toContain("重试");
+    });
+
+    it("renders a loading indicator for each blockId in the batch", () => {
+      const dom = new JSDOM(`
+        <article>
+          <p data-qrt-block-id="a">A</p>
+          <p data-qrt-block-id="b">B</p>
+        </article>
+      `);
+      const document = dom.window.document;
+
+      new DOMRenderer(document).renderLoading(["a", "b"], "translating", 0, 2);
+
+      expect(document.querySelectorAll(".qrt-loading")).toHaveLength(2);
+    });
+
+    it("does nothing when the block element is missing", () => {
+      const dom = new JSDOM(`<article><p>nothing</p></article>`);
+      const document = dom.window.document;
+
+      expect(() =>
+        new DOMRenderer(document).renderLoading(["nope"], "translating", 0, 2)
+      ).not.toThrow();
+      expect(document.querySelectorAll(".qrt-loading")).toHaveLength(0);
+    });
+
+    it("injects the spinner stylesheet exactly once", () => {
+      const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
+      const document = dom.window.document;
+      const renderer = new DOMRenderer(document);
+
+      renderer.renderLoading(["b1"], "translating", 0, 2);
+      renderer.renderLoading(["b1"], "retrying", 1, 2);
+
+      const styles = document.querySelectorAll('style[data-qrt-loading-style]');
+      expect(styles).toHaveLength(1);
+    });
+
+    it("render() removes the loading indicator for the block it translates", () => {
+      const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
+      const document = dom.window.document;
+      const renderer = new DOMRenderer(document);
+
+      renderer.renderLoading(["b1"], "translating", 0, 2);
+      expect(document.querySelector(".qrt-loading")).not.toBeNull();
+
+      renderer.render([makeResult("b1", "你好")]);
+
+      expect(document.querySelector(".qrt-loading")).toBeNull();
+      expect(document.querySelector(".qrt-translation")).not.toBeNull();
+    });
+
+    it("renderError() removes the loading indicator for the block it errors", () => {
+      const dom = new JSDOM(`<p data-qrt-block-id="b1">Hi</p>`);
+      const document = dom.window.document;
+      const renderer = new DOMRenderer(document);
+
+      renderer.renderLoading(["b1"], "retrying", 2, 2);
+      expect(document.querySelector(".qrt-loading")).not.toBeNull();
+
+      renderer.renderError("b1", "rate limited", () => {});
+
+      expect(document.querySelector(".qrt-loading")).toBeNull();
+      expect(document.querySelector(".qrt-error")).not.toBeNull();
+    });
+  });
 });

@@ -10,8 +10,15 @@ import {
   selectBlocksForTranslation,
   type SendMessage,
 } from "@/interface-adapters/content/orchestrator";
-import { renderResults, setRendererTheme } from "@/interface-adapters/content/renderer-adapter";
-import { isTriggerTranslate } from "@/interface-adapters/content/message-router";
+import {
+  renderResults,
+  renderLoading,
+  setRendererTheme,
+} from "@/interface-adapters/content/renderer-adapter";
+import {
+  isTriggerTranslate,
+  isBlockProgress,
+} from "@/interface-adapters/content/message-router";
 import { ConfigService } from "@/application/ConfigService";
 import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
 import type { AppConfig } from "@/shared/types";
@@ -129,9 +136,18 @@ export default defineContentScript({
     // to ask this tab to translate. We don't need an async sendResponse (the popup
     // updates its own status optimistically), so return false to signal the channel
     // can close immediately.
+    //
+    // Background → content progress bridge: while a TRANSLATE_BLOCKS request is
+    // in flight, the background forwards scheduler progress events back to this
+    // tab as `{ type: "BLOCK_PROGRESS", blockIds, state, attempt, maxRetries }`.
+    // We render a per-block loading / retrying indicator from each event; the
+    // indicator is cleared automatically by renderResults / renderError when
+    // the terminal state for that block arrives.
     browser.runtime.onMessage.addListener((message: unknown) => {
       if (isTriggerTranslate(message)) {
         void handleTrigger({});
+      } else if (isBlockProgress(message)) {
+        renderLoading(message.blockIds, message.state, message.attempt, message.maxRetries);
       }
       return false;
     });

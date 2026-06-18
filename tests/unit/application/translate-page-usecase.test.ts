@@ -223,4 +223,97 @@ describe("TranslatePageUseCase", () => {
     await useCase.execute(blocks, "zh-CN");
     expect(scheduler.schedule).toHaveBeenCalledTimes(1);
   });
+
+  it("forwards onProgress callback to scheduler.schedule", async () => {
+    const blocks = [
+      new ParagraphBlock({ sourceText: "Hello", sourceLanguage: "en" }),
+    ];
+
+    const onProgress = vi.fn();
+    const scheduler = {
+      schedule: vi
+        .fn<
+          (
+            requests: TranslationRequest[],
+            cb?: unknown
+          ) => Promise<TranslationResult[]>
+        >()
+        .mockResolvedValue([
+          new TranslationResult({
+            blockId: blocks[0].id,
+            translatedText: "你好",
+            providerId: "fake",
+            modelId: "m",
+            latencyMs: 10,
+          }),
+        ]),
+    };
+    const merger = {
+      merge: vi
+        .fn<(blocks: ParagraphBlock[], targetLanguage: string) => TranslationRequest[]>()
+        .mockReturnValue([
+          new TranslationRequest({
+            blockIds: [blocks[0].id],
+            combinedText: "Hello",
+            targetLanguage: "zh-CN",
+          }),
+        ]),
+    };
+    const cache = {
+      get: vi.fn<(key: string) => Promise<CacheEntry | null>>().mockResolvedValue(null),
+      set: vi.fn<(key: string, entry: CacheEntry) => Promise<void>>().mockResolvedValue(undefined),
+    };
+
+    const useCase = new TranslatePageUseCase({
+      scheduler,
+      merger,
+      cache,
+      promptVersion: "v1",
+      providerId: "fake",
+      modelId: "m",
+    });
+
+    await useCase.execute(blocks, "zh-CN", onProgress);
+
+    // The callback must be forwarded as the second argument to schedule.
+    expect(scheduler.schedule).toHaveBeenCalledTimes(1);
+    expect(scheduler.schedule.mock.calls[0][1]).toBe(onProgress);
+  });
+
+  it("does NOT call onProgress on a cache-hit path (scheduler not invoked)", async () => {
+    const blocks = [
+      new ParagraphBlock({ sourceText: "Hello", sourceLanguage: "en" }),
+    ];
+    const onProgress = vi.fn();
+
+    const scheduler = {
+      schedule: vi.fn(),
+    };
+    const merger = {
+      merge: vi.fn(),
+    };
+    const cache = {
+      get: vi.fn().mockResolvedValue({
+        translatedText: "你好",
+        providerId: "fake",
+        modelId: "m",
+        createdAt: Date.now(),
+      } satisfies CacheEntry),
+      set: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const useCase = new TranslatePageUseCase({
+      scheduler,
+      merger,
+      cache,
+      promptVersion: "v1",
+      providerId: "fake",
+      modelId: "m",
+    });
+
+    await useCase.execute(blocks, "zh-CN", onProgress);
+
+    expect(scheduler.schedule).not.toHaveBeenCalled();
+    expect(onProgress).not.toHaveBeenCalled();
+  });
 });
