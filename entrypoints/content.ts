@@ -14,6 +14,7 @@ import { isTriggerTranslate } from "@/interface-adapters/content/message-router"
 import { ConfigService } from "@/application/ConfigService";
 import { BrowserStorageConfigRepo } from "@/infrastructure/repositories/BrowserStorageConfigRepo";
 import type { TranslationThemeId } from "@/shared/types";
+import { DEFAULT_SELECTOR_CONFIG } from "@/shared/constants";
 
 /**
  * Content script entry point.
@@ -58,7 +59,12 @@ export default defineContentScript({
       // Re-extract on every trigger so blocks reflect the current DOM.
       // This also (re)tags elements with data-qrt-block-id, which
       // subsequent hovers rely on.
-      const blocks = extractor.extractFromElement(document.body);
+      const blocks = extractor.extractFromElement(
+        document.body,
+        DEFAULT_SELECTOR_CONFIG,
+        [],
+        new URL(location.href)
+      );
       const selected = selectBlocksForTranslation(
         blocks,
         opts.selection ?? null,

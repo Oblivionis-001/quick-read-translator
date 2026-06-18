@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { JSDOM } from "jsdom";
 import { DOMBlockExtractor } from "@/infrastructure/extractors/DOMBlockExtractor";
+import { DEFAULT_SELECTOR_CONFIG } from "@/shared/constants";
 
 describe("DOMBlockExtractor", () => {
   it("extracts paragraph blocks from DOM", () => {
@@ -12,7 +13,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks).toHaveLength(2);
@@ -33,7 +37,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks).toHaveLength(4);
@@ -53,7 +60,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks).toHaveLength(1);
@@ -69,7 +79,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks[0].domReference).toBe("p-0");
@@ -84,10 +97,16 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks1 = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
     const blocks2 = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks1[0].sourceLanguage).toBe("auto");
@@ -106,7 +125,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks[0].sourceText).toBe("Hello world with breaks");
@@ -116,7 +138,10 @@ describe("DOMBlockExtractor", () => {
     const dom = new JSDOM(`<div><span>nope</span></div>`);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("div")!
+      dom.window.document.querySelector("div")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     expect(blocks).toHaveLength(0);
@@ -132,7 +157,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     // The outermost matched element is <li>; the inner <p> is a descendant
@@ -150,7 +178,10 @@ describe("DOMBlockExtractor", () => {
     `);
     const extractor = new DOMBlockExtractor();
     const blocks = extractor.extractFromElement(
-      dom.window.document.querySelector("article")!
+      dom.window.document.querySelector("article")!,
+      DEFAULT_SELECTOR_CONFIG,
+      [],
+      new URL("https://example.com/")
     );
 
     const paragraphs = dom.window.document.querySelectorAll("p");
