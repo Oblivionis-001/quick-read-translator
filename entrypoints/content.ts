@@ -4,6 +4,7 @@ import { DOMBlockExtractor } from "@/infrastructure/extractors/DOMBlockExtractor
 import { listenHotkey } from "@/interface-adapters/content/triggers/hotkey-trigger";
 import { listenSelection } from "@/interface-adapters/content/triggers/selection-trigger";
 import { createHoverButton } from "@/interface-adapters/content/triggers/hover-button-trigger";
+import { FloatingBallHost } from "@/infrastructure/floating-ball/FloatingBallHost";
 import {
   translateBlocks,
   selectBlocksForTranslation,
@@ -90,6 +91,7 @@ export default defineContentScript({
     const selectionTriggerEnabled = config?.selectionTriggerEnabled ?? true;
     const hoverButtonEnabled = config?.hoverButtonEnabled ?? true;
     const translationTheme = config?.translationTheme ?? 'inherit';
+    const floatingBallEnabled = config?.floatingBallEnabled ?? true;
     setRendererTheme(translationTheme);
 
     listenHotkey(hotkey, () => {
@@ -104,6 +106,13 @@ export default defineContentScript({
       createHoverButton((blockId) => {
         void handleTrigger({ hoverBlockId: blockId });
       });
+    }
+
+    if (floatingBallEnabled) {
+      const ballHost = new FloatingBallHost();
+      ballHost.attach().catch((err) =>
+        console.error('[qrt] floating ball attach failed:', err)
+      );
     }
 
     // Popup → content message bridge. The popup sends `{ type: "TRIGGER_TRANSLATE" }`
