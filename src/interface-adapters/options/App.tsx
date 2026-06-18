@@ -158,6 +158,7 @@ export default function App() {
       <ProviderSection
         config={config}
         currentProvider={currentProvider}
+        configService={configService}
         onSelectCurrent={(id) => save({ ...config, currentProviderId: id })}
         onAdd={handleAddProvider}
         onDelete={handleDeleteProvider}
@@ -202,6 +203,7 @@ export default function App() {
 interface ProviderSectionProps {
   config: AppConfig;
   currentProvider: ProviderConfig;
+  configService: ConfigService;
   onSelectCurrent: (id: string) => void;
   onAdd: () => void;
   onDelete: (id: string) => void;
@@ -211,6 +213,7 @@ interface ProviderSectionProps {
 function ProviderSection({
   config,
   currentProvider,
+  configService,
   onSelectCurrent,
   onAdd,
   onDelete,
@@ -239,6 +242,10 @@ function ProviderSection({
           >
             + Add
           </button>
+          <TestConnectionButton
+            providerId={currentProvider.id}
+            configService={configService}
+          />
           <button
             type="button"
             className="text-xs underline text-sequoia-red"
@@ -439,5 +446,72 @@ function DataSection({ onExport, onImport }: DataSectionProps) {
         </button>
       </div>
     </section>
+  );
+}
+
+interface TestConnectionButtonProps {
+  providerId: string;
+  configService: ConfigService;
+}
+
+type TestState =
+  | { kind: "idle" }
+  | { kind: "testing" }
+  | { kind: "ok"; latencyMs: number; message: string }
+  | { kind: "fail"; message: string };
+
+function TestConnectionButton({
+  providerId,
+  configService,
+}: TestConnectionButtonProps) {
+  const [state, setState] = useState<TestState>({ kind: "idle" });
+
+  const onClick = async () => {
+    setState({ kind: "testing" });
+    try {
+      const result = await configService.testProvider(providerId);
+      if (result.ok) {
+        setState({
+          kind: "ok",
+          latencyMs: result.latencyMs,
+          message: result.message,
+        });
+        setTimeout(() => setState({ kind: "idle" }), 3000);
+      } else {
+        setState({ kind: "fail", message: result.message });
+      }
+    } catch (err) {
+      setState({
+        kind: "fail",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const label =
+    state.kind === "testing"
+      ? "Testing…"
+      : state.kind === "ok"
+        ? `✓ ${state.latencyMs}ms — ${state.message}`
+        : state.kind === "fail"
+          ? `✗ ${state.message}`
+          : "Test connection";
+
+  const color =
+    state.kind === "ok"
+      ? "text-sequoia-green"
+      : state.kind === "fail"
+        ? "text-sequoia-red"
+        : "text-sequoia-grey";
+
+  return (
+    <button
+      type="button"
+      className={`text-xs underline ${color}`}
+      onClick={onClick}
+      disabled={state.kind === "testing"}
+    >
+      {label}
+    </button>
   );
 }
