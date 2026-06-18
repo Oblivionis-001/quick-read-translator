@@ -15,6 +15,8 @@ import {
   validateImportedConfig,
 } from "@/interface-adapters/options/operations";
 import { AppearanceSection } from "./AppearanceSection";
+import { SelectorSection } from "./SelectorSection";
+import { SiteRulesSection } from "./SiteRulesSection";
 
 const configService = new ConfigService(new BrowserStorageConfigRepo());
 
@@ -183,6 +185,15 @@ export default function App() {
       <AppearanceSection
         theme={config.translationTheme}
         onThemeChange={(v) => save({ ...config, translationTheme: v })}
+      />
+
+      <SelectorSection
+        config={config.selectorConfig}
+        onChange={(next) => save({ ...config, selectorConfig: next })}
+      />
+      <SiteRulesSection
+        rules={config.siteRules}
+        onChange={(next) => save({ ...config, siteRules: next })}
       />
 
       <LocalProxySection
