@@ -9,6 +9,15 @@ import {
   DEFAULT_TRANSLATION_THEME,
   DEFAULT_FLOATING_BALL_ENABLED,
 } from "@/shared/constants";
+import { OpenAICompatibleProvider } from "@/infrastructure/providers/OpenAICompatibleProvider";
+import { TranslationRequest } from "@/domain/entities/TranslationRequest";
+import { TranslationError } from "@/domain/errors";
+
+export interface ProviderTestResult {
+  ok: boolean;
+  latencyMs: number;
+  message: string;
+}
 
 export const DEFAULT_PROVIDER: ProviderConfig = {
   id: "glm",
@@ -57,6 +66,45 @@ export class ConfigService {
    */
   clearCache(): void {
     this.cache = null;
+  }
+
+  /**
+   * Run a single minimal translation via the provider to verify connectivity
+   * and configuration. Bypasses TranslationCache and the orchestrator entirely
+   * — we want a fresh, isolated round-trip.
+   */
+  async testProvider(providerId: string): Promise<ProviderTestResult> {
+    const config = await this.getConfig();
+    const providerCfg = config.providers.find((p) => p.id === providerId);
+    if (!providerCfg) {
+      return { ok: false, latencyMs: 0, message: `Provider not found: ${providerId}` };
+    }
+    const provider = new OpenAICompatibleProvider(providerCfg);
+    const request = new TranslationRequest({
+      blockIds: ['__test__'],
+      combinedText: 'Hello',
+      targetLanguage: config.targetLanguage,
+      sourceLanguage: config.sourceLanguage,
+    });
+    // Measure the full round-trip including error mapping so the user sees
+    // total wall time on both success and failure paths.
+    const start = performance.now();
+    try {
+      const results = await provider.translate([request]);
+      const translatedText = results[0]?.translatedText ?? '';
+      const latencyMs = Math.round(performance.now() - start);
+      return {
+        ok: true,
+        latencyMs,
+        message: `Translated "Hello" → "${translatedText}"`,
+      };
+    } catch (err) {
+      const latencyMs = Math.round(performance.now() - start);
+      const message = err instanceof TranslationError
+        ? `${err.name}: ${err.message}`
+        : err instanceof Error ? err.message : String(err);
+      return { ok: false, latencyMs, message };
+    }
   }
 
   private createDefault(): AppConfig {
