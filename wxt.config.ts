@@ -16,7 +16,7 @@ export default defineConfig({
   manifest: {
     name: "Quick Read Translator",
     description: "Immersive bilingual translation for web pages",
-    version: "0.1.0",
+    version: "0.2.0",
     permissions: ["storage", "activeTab"],
     host_permissions: ["<all_urls>"],
     action: {},
