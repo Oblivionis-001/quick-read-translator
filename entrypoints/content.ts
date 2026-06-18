@@ -125,5 +125,11 @@ export default defineContentScript({
       }
       return false;
     });
+
+    // Floating panel → content event bridge. The panel dispatches
+    // `qrt:translate-page` on window (same JS context as content script).
+    window.addEventListener('qrt:translate-page', () => {
+      void handleTrigger({});
+    });
   },
 });
