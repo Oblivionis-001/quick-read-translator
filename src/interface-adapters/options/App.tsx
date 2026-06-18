@@ -174,6 +174,7 @@ export default function App() {
         onSelectionTriggerToggle={(v) =>
           save({ ...config, selectionTriggerEnabled: v })
         }
+        onFloatingBallToggle={(v) => save({ ...config, floatingBallEnabled: v })}
       />
 
       <LanguageSection
@@ -335,6 +336,7 @@ interface TriggersSectionProps {
   onHotkeyChange: (v: string) => void;
   onHoverButtonToggle: (v: boolean) => void;
   onSelectionTriggerToggle: (v: boolean) => void;
+  onFloatingBallToggle: (v: boolean) => void;
 }
 
 function TriggersSection({
@@ -342,6 +344,7 @@ function TriggersSection({
   onHotkeyChange,
   onHoverButtonToggle,
   onSelectionTriggerToggle,
+  onFloatingBallToggle,
 }: TriggersSectionProps) {
   return (
     <section className="bg-white p-6 shadow-sm mb-6">
@@ -366,6 +369,14 @@ function TriggersSection({
           onChange={(e) => onSelectionTriggerToggle(e.target.checked)}
         />
         Selection trigger enabled
+      </label>
+      <label className="flex items-center gap-2 mb-2 text-sm">
+        <input
+          type="checkbox"
+          checked={config.floatingBallEnabled}
+          onChange={(e) => onFloatingBallToggle(e.target.checked)}
+        />
+        Floating ball enabled
       </label>
     </section>
   );
